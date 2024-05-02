@@ -6,6 +6,7 @@ You can either make a copy of this file into the directory with the build_networ
 and run it from there directly, or specify the model directory containing the build_network.py
 file as an argument (-D). The script will create a folder structure for the generated metamers
 in the directory specified, or in the directory it is called from, if no directory is specified. 
+
 """
 
 import torch
