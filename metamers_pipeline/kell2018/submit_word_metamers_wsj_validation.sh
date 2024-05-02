@@ -16,5 +16,5 @@ module add openmind/cuda/9.1
 
 export CONDA_ENVS_PATH=~/my-envs:/om4/group/mcdermott/user/jfeather/conda_envs_files
 source activate /om4/group/mcdermott/user/jfeather/conda_envs_files/pytorch
-cp ../../../analysis_scripts/make_metamers_wsj400_behavior_only_save_metamer_layers.py .
-python make_metamers_wsj400_behavior_only_save_metamer_layers.py $SLURM_ARRAY_TASK_ID -S -I 3000 -N 8
+cp ../make_metamers.py .
+python make_metamers.py $SLURM_ARRAY_TASK_ID -S -I 3000 -N 8
