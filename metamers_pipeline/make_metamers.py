@@ -12,7 +12,7 @@ in the directory specified, or in the directory it is called from, if no directo
 import torch
 import os
 
-from analysis_scripts.input_helpers import generate_import_audio_functions
+from input_helpers import generate_import_audio_functions
 from robustness.model_utils import make_and_restore_model
 
 from matplotlib import pylab as plt
