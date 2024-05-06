@@ -25,7 +25,8 @@ def build_net(include_rep_in_model=True,
                 **ds_kwargs) # Sequential will change the state dict names
 
     # Path to the network checkpoint to load
-    resume_path = os.path.join(MODEL_BASE_PATH, 'audio_networks', 'pytorch_checkpoints', 'kell2018_wsn_word.pt')
+    # resume_path = os.path.join(MODEL_BASE_PATH, 'audio_networks', 'pytorch_checkpoints', 'kell2018_wsn_word.pt')
+    resume_path = '/om2/user/jfeather/projects/component_synthesis/model_metamers_pytorch/model_analysis_folders/audio_networks/pytorch_checkpoints/kell2018_wsn_word.pt' ######### TEMPORARY #########
 
     # Resnet Layers Used for Metamer Generation
     metamer_layers = [
