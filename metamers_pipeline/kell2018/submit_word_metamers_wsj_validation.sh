@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=met_resnet50
-#SBATCH --output=output/standard%A_%a.out
-#SBATCH --error=output/standard%A_%a.err
+##SBATCH --output=output/standard%A_%a.out
+##SBATCH --error=output/standard%A_%a.err
 #SBATCH --mem=4000
 #SBATCH --time=9:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --array=0-399
+#SBATCH --array=0
 #SBATCH --constraint="high-capacity&11GB"
 #SBATCH --exclude=node093,node040,node094
 #SBATCH --partition=mcdermott

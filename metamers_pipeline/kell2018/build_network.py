@@ -2,7 +2,8 @@ import sys
 from robustness.datasets import jsinV3
 from robustness.model_utils import make_and_restore_model
 
-from model_analysis_folders.all_model_info import JSIN_PATH, MODEL_BASE_PATH
+sys.path.append('../')
+from all_model_info import JSIN_PATH, MODEL_BASE_PATH
 import os
 
 # Make a custom build script for audio_rep_training_cochleagram_1/l2_p1_robust_training

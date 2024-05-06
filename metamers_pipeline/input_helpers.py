@@ -15,7 +15,7 @@ from functools import partial
 import resampy
 from PIL import Image
 import json  
-from analysis_scripts.default_paths import *
+from default_paths import *
 
 def generate_import_audio_functions(audio_func='psychophysicskell2018dry', preproc_scaled=1, rms_normalize=1, **kwargs):
   """
