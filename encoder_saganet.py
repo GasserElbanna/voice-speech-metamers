@@ -8,12 +8,9 @@ from torchvision.transforms import Compose
 from transformers import WhisperForConditionalGeneration, WhisperProcessor, AutoFeatureExtractor, WhisperModel
 
 class Speech_Encoder_Transformer(torch.nn.Module):
-    def __init__(self, sampling_rate=16000,num_speaker_class=100,word_vocab=50,d_model=704,num_head=1,dim_feedforward=512,num_layers=6):
+    def __init__(self, sampling_rate=16000,d_model=704,num_head=1,dim_feedforward=512,num_layers=6):
         super(Speech_Encoder_Transformer, self).__init__()
         self.sampling_rate = sampling_rate
-        self.num_speaker_class = num_speaker_class # change this after analyzing dataset
-        self.word_vocab = word_vocab # change this after analyzing dataset -> len(vocab_dict)
-        
         self.whisper_encoder = WhisperModel.from_pretrained("openai/whisper-base")
         self.decoder_input_ids = torch.tensor([[1, 1]]) * self.whisper_encoder.config.decoder_start_token_id
         self.whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
