@@ -48,7 +48,7 @@ class Joint_Encoder(torch.nn.Module):
 
 
 if __name__ == '__main__':
-    model = Speech_Encoder_Transformer()
+    model = Speech_Encoder()
     # x = {}
     x = [torch.ones((2,35000))]
     print(x)
