@@ -72,9 +72,10 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     # raw_datasets = raw_datasets.map(load_audios)
     
     # 2. Define Tokenizer and Feature Extractor
+    processor = WhisperProcessor.from_pretrained("openai/whisper-small", language="English", task="transcribe")
 
     #define a tokenizer for the vocabulary
-    tokenizer = Tokenizer(**finetuning_config.text)
+    tokenizer = processor.tokenizer()
     #define a feature extractor for the model
     feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("facebook/wav2vec2-base", 
                                                                 cache_dir=finetuning_config.cache_dir)
