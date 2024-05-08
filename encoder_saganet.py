@@ -35,7 +35,7 @@ class Speaker_Encoder(torch.nn.Module):
         return speaker_embedding
     
 class Joint_Encoder(torch.nn.Module):
-    def __init__(self,d_model=704,num_head=1,dim_feedforward=512,num_layers=6):
+    def __init__(self,d_model=704,num_head=2,dim_feedforward=512,num_layers=6):
         super(Joint_Encoder, self).__init__()
         self.transformer_encoder_single = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_head, dim_feedforward=dim_feedforward, batch_first=True)
         self.joint_encoder = nn.TransformerEncoder(self.transformer_encoder_single, num_layers=num_layers)
@@ -50,11 +50,24 @@ class Joint_Encoder(torch.nn.Module):
 if __name__ == '__main__':
     model = Speech_Encoder()
     # x = {}
-    x = [torch.ones((2,35000))]
-    print(x)
+    x = torch.ones(35000)
+    #print(x)
     # compute the forward pass
     y = model(x)
     # print(y.keys(), len(y["encoder_features_0"]), y["encoder_features_0"][1].shape)
-    print(len(y))
-    print(len(y[0]), len(y[1]))
-    print(y[0][0].shape, y[1][0].shape)
+    print(y.shape)
+
+    model = Speaker_Encoder()
+    x = torch.ones((2,35000))
+    #print(x)
+    # compute the forward pass
+    y = model(x)
+    print(y.shape)
+
+    model = Joint_Encoder()
+    x = torch.ones((2,1500,704))
+    #print(x)
+    # compute the forward pass
+    y = model(x)
+    print(y.shape)
+    
