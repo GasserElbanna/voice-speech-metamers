@@ -19,6 +19,24 @@ class InversionLossLayer(torch.nn.Module):
             loss = torch.norm(rep - targ, dim=1)
         return loss, None
 
+class InversionLossLayer_ecapa(torch.nn.Module):
+    """Loss used for most metamer generation experiments"""
+    def __init__(self, layer_to_invert, fake_relu=True, normalize_loss=False):
+        super(InversionLossLayer_ecapa, self).__init__()
+        self.layer_to_invert = layer_to_invert
+        self.fake_relu = False
+        self.normalize_loss = normalize_loss
+
+    def forward(self, model, inp, targ):
+        # CHange to get ecapa model embeddings
+        all_outputs = model.encode_batch(inp)
+        rep = all_outputs[0][0]
+        if self.normalize_loss:
+            loss = torch.div(torch.norm(rep - targ, dim=1), torch.norm(targ, dim=1))
+        else:
+            loss = torch.norm(rep - targ, dim=1)
+        return loss, None
+
 class InversionLossLayerL1(torch.nn.Module):
     """Loss used for most metamer generation experiments"""
     def __init__(self, layer_to_invert, fake_relu=True, normalize_loss=False):
@@ -177,6 +195,7 @@ class InversionLossLayerWithCoarseDefineSpecTemp111(torch.nn.Module):
 
 LOSSES = {
     'inversion_loss_layer': InversionLossLayer,
+    'inversion_loss_layer_ecapa': InversionLossLayer_ecapa,
     'inversion_loss_layer_l1':InversionLossLayerL1,
     'coarse_define_spectemp_inversion_loss_layer':InversionLossLayerWithCoarseDefineSpecTemp111,
     'random_single_unit_optimization_inversion_loss_layer': InversionLossLayerWithRandomSingleUnitOptimizationDropout,

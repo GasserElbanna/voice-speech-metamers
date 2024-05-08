@@ -171,11 +171,10 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
             'use_best': False
         }
      
-        # if hasattr(synth_kwargs['custom_loss'], 'enable_dropout_flag'):
-        #     # always false
-        #     model.enable_dropout_flag = synth_kwargs['custom_loss'].enable_dropout_flag
-        #     model.enable_dropout_functions = synth_kwargs['custom_loss']._enable_dropout_functions
-        #     model.disable_dropout_functions = synth_kwargs['custom_loss']._disable_dropout_functions
+        if hasattr(synth_kwargs['custom_loss'], 'enable_dropout_flag'):
+            model.enable_dropout_flag = synth_kwargs['custom_loss'].enable_dropout_flag
+            model.enable_dropout_functions = synth_kwargs['custom_loss']._enable_dropout_functions
+            model.disable_dropout_functions = synth_kwargs['custom_loss']._disable_dropout_functions
     
         # Use same noise for every layer. 
         im_n = torch.from_numpy(im_n_initialized).cuda()
