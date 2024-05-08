@@ -36,7 +36,7 @@ class Speaker_Encoder(torch.nn.Module):
     
 class Joint_Encoder(torch.nn.Module):
     def __init__(self,d_model=704,num_head=1,dim_feedforward=512,num_layers=6):
-        super(Speaker_Encoder, self).__init__()
+        super(Joint_Encoder, self).__init__()
         self.transformer_encoder_single = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_head, dim_feedforward=dim_feedforward, batch_first=True)
         self.joint_encoder = nn.TransformerEncoder(self.transformer_encoder_single, num_layers=num_layers)
 
