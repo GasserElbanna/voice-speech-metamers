@@ -151,7 +151,7 @@ class Learner(pl.LightningModule):
         
         loss, per_value = self._shared_eval_step(batch)
 
-        self.val_logs["val_CTC_loss"] = loss
+        self.val_logs["val_Total_loss"] = loss
         self.val_logs["val_PER"] = per_value
 
         self.val_logs = {k: v for k, v in self.val_logs.items()}
@@ -186,23 +186,26 @@ class Learner(pl.LightningModule):
     
     def forward(self, x):
         #extract encoder features
-        features = self.encoder(x['input_values'])
-
-        #select the layers of interest
-        features = self.featurizer(features)
-
-        #pad both features and labels
-        features = pad_sequence(features, batch_first=True)
+        features_speech = self.encoder_speech(x['input_values'])
+        features_speaker = self.encoder_speaker(x['input_values'])
         
-        #project features to lower dimension
-        features_proj = self.projector(features)
+        #concatenate the speech and speaker embeddings along the embedding dimension
+        batch, feature, embeddings = features_speech.shape
+        features_speaker = features_speaker.expand(-1, feature, -1)
+        features_concatenated = torch.cat((features_speech, features_speaker), dim=-1)
 
-        #pass features to decoder to get logits
-        logits = self.decoder(features_proj)
+        #pass the concatenated embedding through joint encoder
+        features_joint = self.encoder_joint(features_concatenated)
+
+        #get the word and speaker logits
+        logits_speech = self.decoder_speech(features_joint)
+        logits_speaker = self.decoder_speaker(features_joint)                    
+        
         #compute the prob for each class
-        log_probs = nn.functional.log_softmax(logits, dim=-1)
+        log_probs_speech = nn.functional.log_softmax(logits_speech, dim=-1)
+        log_probs_speaker = nn.functional.log_softmax(logits_speaker, dim=-1)
 
-        pred_tokens = log_probs.argmax(dim=-1)
+        pred_tokens = log_probs_speech.argmax(dim=-1)
         filtered_tokens = []
         for pred_token in pred_tokens:
             pred_token = pred_token.unique_consecutive()
