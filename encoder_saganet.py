@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
-from transformers import WhisperForConditionalGeneration, WhisperProcessor, AutoFeatureExtractor, WhisperModel
+from transformers import WhisperForConditionalGeneration, WhisperProcessor, AutoFeatureExtractor, WhisperModel, WhisperFeatureExtractor
 
 class Speech_Encoder(torch.nn.Module):
     def __init__(self, sampling_rate=16000):
@@ -13,7 +13,7 @@ class Speech_Encoder(torch.nn.Module):
         self.sampling_rate = sampling_rate
         self.whisper_encoder = WhisperModel.from_pretrained("openai/whisper-base")
         self.decoder_input_ids = torch.tensor([[1, 1]]) * self.whisper_encoder.config.decoder_start_token_id
-        self.whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base") 
+        self.whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
 
     def forward(self, x):
         # Forward pass for whisper branch
@@ -51,6 +51,7 @@ if __name__ == '__main__':
     model = Speech_Encoder()
     # x = {}
     x = torch.ones(35000)
+    #x = torch.ones((2,35000)) # gives error 
     #print(x)
     # compute the forward pass
     y = model(x)
