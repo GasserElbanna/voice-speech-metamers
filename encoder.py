@@ -1,53 +1,59 @@
-from collections import defaultdict
-
 import torch
-from transformers import Wav2Vec2Model
-from speechbrain.inference.encoders import WaveformEncoder
+import torch.nn as nn
+from transformers import AutoFeatureExtractor, AutoModel
+from speechbrain.inference.speaker import EncoderClassifier
 
+class Speech_Encoder(torch.nn.Module):
+    def __init__(self, cache_dir, sampling_rate=16000):
+        super(Speech_Encoder, self).__init__()
+        self.sampling_rate = sampling_rate
+        self.whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
+        self.whisper_encoder = AutoModel.from_pretrained("openai/whisper-base", cache_dir=cache_dir)
+        self.decoder_input_ids = torch.tensor([[1, 1]]) * self.whisper_encoder.config.decoder_start_token_id
+        self.whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
 
-class Encoder(torch.nn.Module):
-    def __init__(self, model_name, ckpt, cache_dir):
-        super().__init__()
-        self.model_name = model_name
-        if self.model_name == "wav2vec2_orig":
-            self.model = Wav2Vec2Model.from_pretrained(ckpt, cache_dir=cache_dir)
-        else:
-            self.model = WaveformEncoder.from_hparams(source=ckpt, savedir=cache_dir, run_opts={"device":"cuda"})
-            self.activation = defaultdict(list)
-            for layer in range(12):
-                getattr(self.model.mods.encoder.encoder_wrapper.latent_encoder.layers, str(layer)).register_forward_hook(self.get_layer_embeddings(f'encoder_features_{layer}'))
-
-    def get_layer_embeddings(self, name):
-        def hook(model, input, output):
-            self.activation[name].append(output[0])
-        return hook
+    def _preprocess(self, input_):
+        input_feat = self.whisper_feature_extractor(input_, sampling_rate=self.sampling_rate, return_tensors="pt")
+        return input_feat.input_features
     
     def forward(self, input_values):
-        device = input_values[0].device
-        if self.model_name == "wav2vec2_orig":
-            output_values = [self.model(input_.squeeze(0), output_hidden_states=True) for input_ in input_values]
-            return [list(output_.hidden_states[1:]) for output_ in output_values]
-        else:
-            inputs_len = torch.FloatTensor([len(input_) for input_ in input_values]).to(device)
-            inputs_len_norm = inputs_len/inputs_len.max()
-            _ = [self.model.encode_batch(input_.squeeze(0), inputs_len_norm[i])["embeddings"].squeeze(0) for i, input_ in enumerate(input_values)]
-            # return self.activation
-            output_values = []
-            for i in range(len(input_values)):
-                output_values.append([self.activation[name][i] for name in self.activation.keys()])
-            self.activation = defaultdict(list)
-            return output_values
-            
+        # Forward pass for whisper branch
+        self.whisper_encoder.eval()
+        input_values = [self._preprocess(input_) for input_ in input_values]
+        output_values = [self.whisper_encoder(input_, decoder_input_ids=self.decoder_input_ids) for input_ in input_values]
+        output_values = [output_.encoder_last_hidden_state for output_ in output_values]
+        return output_values
+
+class Speaker_Encoder(torch.nn.Module):
+    def __init__(self, cache_dir):
+        super(Speaker_Encoder, self).__init__()
+        self.ecapa_encoder = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb", savedir=cache_dir)
+
+    def forward(self, input_values):
+        # Forward pass for ECAPA branch
+        self.ecapa_encoder.eval()
+        speaker_embedding = [self.ecapa_encoder.encode_batch(input_).squeeze(0) for input_ in input_values] # shape batch x 1 x embeddings
+        return speaker_embedding
+    
+class Joint_Encoder(torch.nn.Module):
+    def __init__(self, d_model=704, num_head=1, dim_feedforward=512, num_layers=2):
+        super(Joint_Encoder, self).__init__()
+        self.transformer_encoder_single = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_head, dim_feedforward=dim_feedforward, batch_first=True)
+        self.joint_encoder = nn.TransformerEncoder(self.transformer_encoder_single, num_layers=num_layers)
+
+    def forward(self, x):
+        # Forward pass for joint branch
+        joint_embedding = self.joint_encoder(x) # shape batch x timeframes x embeddings
+        return joint_embedding
+
 
 if __name__ == '__main__':
-    model = Encoder("wav2vec2_sb", "/om2/user/gelbanna/raw_wav2vec2/save/CKPT+2022-09-20+03-01-00+00", "/om2/user/gelbanna/raw_wav2vec2")
-    # model = Encoder("wav2vec2_orig", "facebook/wav2vec2-base", "/om2/user/gelbanna/model_cache")
+    speech_model = Speech_Encoder("../cache_data")
+    speaker_model = Speaker_Encoder("../cache_data")
     # x = {}
-    x = [torch.ones((1,1,35000)), torch.ones((1,1,30000))]
-    print(x)
+    x = [torch.ones(50000), torch.ones(35000)]
     # compute the forward pass
-    y = model(x)
-    # print(y.keys(), len(y["encoder_features_0"]), y["encoder_features_0"][1].shape)
-    print(len(y))
-    print(len(y[0]), len(y[1]))
-    print(y[0][0].shape, y[1][0].shape)
+    y1 = speech_model(x)
+    y2 = speaker_model(x)
+    print("Speech Embeddings", len(y1), y1[0].shape)
+    print("Speaker Embeddings", len(y2), y2[0].shape)
