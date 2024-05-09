@@ -36,24 +36,26 @@ class Speaker_Encoder(torch.nn.Module):
         return speaker_embedding
     
 class Joint_Encoder(torch.nn.Module):
-    def __init__(self, d_model=704, num_head=1, dim_feedforward=512, num_layers=2):
+    def __init__(self, d_model=704, num_head=8, dim_feedforward=512, num_layers=2):
         super(Joint_Encoder, self).__init__()
         self.transformer_encoder_single = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_head, dim_feedforward=dim_feedforward, batch_first=True)
         self.joint_encoder = nn.TransformerEncoder(self.transformer_encoder_single, num_layers=num_layers)
 
-    def forward(self, x):
+    def forward(self, input_values):
         # Forward pass for joint branch
-        joint_embedding = self.joint_encoder(x) # shape batch x timeframes x embeddings
+        joint_embedding = self.joint_encoder(input_values) # shape batch x timeframes x embeddings
         return joint_embedding
 
 
 if __name__ == '__main__':
     speech_model = Speech_Encoder("../cache_data")
     speaker_model = Speaker_Encoder("../cache_data")
-    # x = {}
+    joint_model = Joint_Encoder()
     x = [torch.ones(50000), torch.ones(35000)]
-    # compute the forward pass
     y1 = speech_model(x)
     y2 = speaker_model(x)
+    x = torch.ones((1,1500,704))
+    y3 = joint_model(x)
     print("Speech Embeddings", len(y1), y1[0].shape)
     print("Speaker Embeddings", len(y2), y2[0].shape)
+    print(y3.shape)

@@ -1,7 +1,7 @@
 """Training Learner definitions
 """
 import numpy as np
-from utils import per
+from utils import cer
 from collections import defaultdict
 
 import torch
@@ -16,9 +16,9 @@ class Learner(pl.LightningModule):
                 tokenizer,
                 speech_encoder,
                 speaker_encoder,
-                encoder_joint,
-                decoder_speech,
-                decoder_speaker,
+                joint_encoder,
+                speech_decoder,
+                speaker_decoder,
                 global_step=None,
                 ckpt_dir=None):
         
@@ -34,18 +34,17 @@ class Learner(pl.LightningModule):
             for param in self.speaker_encoder.parameters():
                 param.requires_grad = False
 
-            self.encoder_joint = encoder_joint
+            self.joint_encoder = joint_encoder
 
-            self.decoder_speech = decoder_speech
-            self.decoder_speaker = decoder_speaker
+            self.speech_decoder = speech_decoder
+            self.speaker_decoder = speaker_decoder
 
             self.ctc_objective = nn.CTCLoss(
                                 blank=self.tokenizer.pad_idx,
                                 zero_infinity=True,
                                 )
             self.cross_entropy_objective = nn.CrossEntropyLoss()
-            self.metric = per
-            #self.metric_speaker = accuracy
+            self.metric_speech = cer
 
             self.val_logs = {}
             self.completed_steps = 0
