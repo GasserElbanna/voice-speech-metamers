@@ -193,4 +193,4 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     logger.info(f'Training is finished.')
     
 if __name__ == '__main__':
-    fire.Fire(main)
+    fire.Fire(main(config_path='config.yaml'))
