@@ -54,8 +54,8 @@ class Learner(pl.LightningModule):
     
     def _shared_eval_step(self, batch, step=None):
         #extract encoder features
-        features_speech = self.encoder_speech(batch['input_values'])
-        features_speaker = self.encoder_speaker(batch['input_values'])
+        features_speech = self.speech_encoder(batch['input_values'])
+        features_speaker = self.speaker_encoder(batch['input_values'])
         
         #concatenate the speech and speaker embeddings along the embedding dimension
         batch, feature, embeddings = features_speech.shape
