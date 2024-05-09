@@ -29,6 +29,8 @@ from scipy.io import wavfile
 from robustness import custom_synthesis_losses
 from robustness.tools.distance_measures import *
 
+from speechbrain.inference.speaker import EncoderClassifier
+
 import argparse
 import pickle
 
@@ -87,13 +89,15 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     #      audio_transforms.UnsqueezeAudio(dim=0),
     #      ])
     
-    ### UPDATE: load in ECAPA model and get params 
-    model, ds, metamer_layers = build_network.main(return_metamer_layers=True,
-                                                   include_identity_sequential=False,
-    #                                                ds_kwargs={'transform_test':TRANSFORMS_TEST_NO_BACKGROUND, 
-    #                                                          },
-                                                   strict=STRICT,
-                                                  )
+    ### UPDATE: get params
+    ### UPDATE: get metamer_layers
+    model = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
+    # model, ds, metamer_layers = build_network.main(return_metamer_layers=True,
+    #                                                include_identity_sequential=False,
+    # #                                                ds_kwargs={'transform_test':TRANSFORMS_TEST_NO_BACKGROUND, 
+    # #                                                          },
+    #                                                strict=STRICT,
+    #                                               )
     
     # We have many different GPUs and the input size doesn't change, so run the autotuner
     torch.backends.cudnn.benchmark = True
@@ -142,6 +146,11 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     
     with torch.no_grad():
         ### UPDATE: To run inference on ecapa
+        # predictions = 
+        all_outputs = model.encode_batch(im)
+        orig_im = im
+        ### UPDATE: rep
+        
         (predictions, rep, all_outputs), orig_im = model(im.cuda(), with_latent=True, fake_relu=True) # Corresponding representation
     
     # Calculate human readable labels and 16 category labels for the original image
@@ -310,6 +319,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
         predictions = predictions.detach().cpu()
     pckl_output_dict['predictions_orig'] = predictions
     if type(rep)==dict:
+        ###REP
         for dict_key, dict_value in rep.items():
             if rep is not None:
                 rep[dict_key] = dict_value.detach().cpu()

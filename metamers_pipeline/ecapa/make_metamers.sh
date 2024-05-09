@@ -15,6 +15,7 @@ module add openmind/cudnn/9.1-7.0.5
 module add openmind/cuda/9.1
 
 export CONDA_ENVS_PATH=~/my-envs:/om4/group/mcdermott/user/jfeather/conda_envs_files
-source activate /om4/group/mcdermott/user/jfeather/conda_envs_files/pytorch
+# source activate /om4/group/mcdermott/user/jfeather/conda_envs_files/pytorch
+source activate metamer310
 cp ../make_metamers.py .
 python make_metamers.py $SLURM_ARRAY_TASK_ID -S -I 3000 -N 8 -L inversion_loss_layer_ecapa
