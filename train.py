@@ -114,7 +114,7 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
 
     #define name of the directory saving the checkpoints
     name = (f"saganet"
-            f'_data-{config.data.data_name}'
+            f'_data-{config.data.data_path}'
             f'_decoder-{config.decoder.model}'
             f'_bs-{config.dataloader.per_device_train_batch_size}'
             f'_e-{num_train_epochs}'
