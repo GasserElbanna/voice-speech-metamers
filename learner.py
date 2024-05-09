@@ -67,6 +67,7 @@ class Learner(pl.LightningModule):
 
         #get the length of the features and labels
         features_len = torch.IntTensor([feat.shape[0] for feat in features_joint])
+        print(batch['speech_labels'])
         labels_speech_len = torch.IntTensor([len(label) for label in batch['speech_labels']])
         print(features_len, labels_speech_len)
 
@@ -79,8 +80,8 @@ class Learner(pl.LightningModule):
                             )
 
         #get the word and speaker logits
-        logits_speech = self.decoder_speech(features_joint)
-        logits_speaker = self.decoder_speaker(features_joint)
+        logits_speech = self.speech_decoder(features_joint)
+        logits_speaker = self.speaker_decoder(features_joint)
         
         
         #compute the prob for each class
