@@ -10,7 +10,7 @@ class Speech_Encoder(torch.nn.Module):
         self.whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
         self.whisper_encoder = AutoModel.from_pretrained("openai/whisper-base", cache_dir=cache_dir)
         self.decoder_input_ids = torch.tensor([[1, 1]]) * self.whisper_encoder.config.decoder_start_token_id
-        self.whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
+        #self.whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
 
     def _preprocess(self, input_):
         input_feat = self.whisper_feature_extractor(input_, sampling_rate=self.sampling_rate, return_tensors="pt")
