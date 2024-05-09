@@ -160,7 +160,7 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     logger.info(f"  Total optimization steps = {config.trainer.max_train_steps}")
 
     # 7. Define Trainer and Learner
-    trainer = pl.Trainer(accelerator='gpu',
+    trainer = pl.Trainer(accelerator='cpu',#gpu
                         devices=config.trainer.num_gpus,
                         num_nodes=config.trainer.num_nodes,
                         strategy=DDPStrategy(find_unused_parameters=False),
