@@ -37,6 +37,7 @@ trainer:
   gradient_clip_val: 1.0
   max_train_steps: 400000
   gradient_accumulation_steps: 1
+  check_val_steps: 20000
   resume: False
 
 optimization:
