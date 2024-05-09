@@ -113,9 +113,17 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     num_train_epochs = math.ceil(config.trainer.max_train_steps / num_update_steps_per_epoch)
 
     #define name of the directory saving the checkpoints
+    # name = (f"saganet"
+    #         f'_data-{config.data.data_path}'
+    #         f'_decoder-{config.saganet.model}'
+    #         f'_bs-{config.dataloader.per_device_train_batch_size}'
+    #         f'_e-{num_train_epochs}'
+    #         f'_lr-{config.optimization.learning_rate}'
+    #         f'_rs-{config.seed}'
+    #         )
+    
     name = (f"saganet"
-            f'_data-{config.data.data_name}'
-            f'_decoder-{config.decoder.model}'
+            f'_data-{config.data.data_path}'
             f'_bs-{config.dataloader.per_device_train_batch_size}'
             f'_e-{num_train_epochs}'
             f'_lr-{config.optimization.learning_rate}'
@@ -134,7 +142,7 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
                                        save_top_k=1, save_weights_only=False,
                                        auto_insert_metric_name=False)
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    # wandb_logger = WandbLogger(save_dir=config.callbacks.checkpoint_folder, version=name, project=f"SAGANet")
+    #wandb_logger = WandbLogger(save_dir=config.callbacks.checkpoint_folder, version=name, project=f"SAGANet")
     # early_stop_callback = EarlyStopping(monitor="val_PER", min_delta=0.005, patience=10, verbose=False, mode="min")
     callbacks = [model_checkpoint, lr_monitor]
     if config.callbacks.push_to_repo:
@@ -152,14 +160,14 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     logger.info(f"  Total optimization steps = {config.trainer.max_train_steps}")
 
     # 7. Define Trainer and Learner
-    trainer = pl.Trainer(accelerator='gpu',
+    trainer = pl.Trainer(accelerator='cpu',#gpu
                         devices=config.trainer.num_gpus,
                         num_nodes=config.trainer.num_nodes,
                         strategy=DDPStrategy(find_unused_parameters=False),
                         max_epochs=num_train_epochs,
                         callbacks=callbacks,
                         accumulate_grad_batches=config.trainer.gradient_accumulation_steps,
-                        logger=wandb_logger,
+                        #logger=wandb_logger,
                         gradient_clip_val=config.trainer.gradient_clip_val,
                         gradient_clip_algorithm='norm',
                         log_every_n_steps=config.trainer.gradient_accumulation_steps,
@@ -193,4 +201,4 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     logger.info(f'Training is finished.')
     
 if __name__ == '__main__':
-    fire.Fire(main)
+    fire.Fire(main(config_path='config.yaml'))
