@@ -87,6 +87,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     #      audio_transforms.UnsqueezeAudio(dim=0),
     #      ])
     
+    ### UPDATE: load in ECAPA model and get params 
     model, ds, metamer_layers = build_network.main(return_metamer_layers=True,
                                                    include_identity_sequential=False,
     #                                                ds_kwargs={'transform_test':TRANSFORMS_TEST_NO_BACKGROUND, 
@@ -107,6 +108,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     audio_dict['wav'], _ = ds.transform_test(audio_dict['wav_orig'], None)
     assert audio_dict['SR']==ds.SR, 'Metamer input sound SR is %d while dataset SR is %d'%(audio_dict['SR'], ds.SR)
     
+    # UPDATE: make sure that this works for ecapa
     # This will not work if the inputs are batched.
     im = audio_dict['wav'].float()
     label_keys = ds.label_mapping.keys()
@@ -139,6 +141,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
         pass
     
     with torch.no_grad():
+        ### UPDATE: To run inference on ecapa
         (predictions, rep, all_outputs), orig_im = model(im.cuda(), with_latent=True, fake_relu=True) # Corresponding representation
     
     # Calculate human readable labels and 16 category labels for the original image
@@ -158,6 +161,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     im_n_initialized = ((torch.randn_like(im)) * NOISE_SCALE ).detach().cpu().numpy()
     # im_n_initialized = ((torch.rand_like(im)-0.5) * NOISE_SCALE ).detach().cpu().numpy()
     
+    ### UPDATE: get metamer layers for ECAPA
     for layer_to_invert in metamer_layers:
         # Choose the inversion parameters (will run 4x the iterations, reducing the learning rate each time)
         synth_kwargs = {
@@ -177,6 +181,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
             model.disable_dropout_functions = synth_kwargs['custom_loss']._disable_dropout_functions
     
         # Use same noise for every layer. 
+        ### UPDATE TO TAKE ECAPA or OTHER
         im_n = torch.from_numpy(im_n_initialized).cuda()
         invert_rep = all_outputs[layer_to_invert].contiguous().view(all_outputs[layer_to_invert].size(0), -1)
     
@@ -197,6 +202,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
         except:
             pass
     
+        ### UPDATE: to run inference on ecapa
         (predictions_out, rep_out, all_outputs_out), xadv = model(im_n, invert_rep.clone(), make_adv=True, **synth_kwargs, with_latent=True, fake_relu=True) 
         this_loss, _ = calc_loss(model, xadv, invert_rep.clone(), synth_kwargs['custom_loss'])
         all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
@@ -215,6 +221,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
                     pass
             im_n = xadv
             synth_kwargs['step_size'] = synth_kwargs['step_size']/2
+            ### UPDATE: to run inference on ecapa
             (predictions_out, rep_out, all_outputs_out), xadv = model(im_n, invert_rep.clone(), make_adv=True, **synth_kwargs, with_latent=True, fake_relu=True) # Image inversion using PGD
             this_loss, _ = calc_loss(model, xadv, invert_rep.clone(), synth_kwargs['custom_loss'])
             all_losses[(i+2)*synth_kwargs['iterations']] = this_loss.detach().cpu()
@@ -231,7 +238,8 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
             rep_out_dict[layer_to_invert] = rep_out.detach().cpu()
         except AttributeError:
             rep_out_dict[layer_to_invert] = rep_out
-    
+
+        ### UPDATE: all_outputs_out to be compatible with ecapa - single layer
         for key in all_outputs_out:
             if type(all_outputs_out[key])==dict:
                 for dict_key, dict_value in all_outputs_out[key].items():
@@ -254,6 +262,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
                 synth_predictions.append(predictions['signal/word_int'][b].detach().cpu().numpy())
     
         # Get the predicted category label
+        ### UPDATE: no label mapping for ecapa - update to accomodate
         synth_cat_prediction  = [ds.label_mapping[np.argmax(p.ravel())] for p in synth_predictions]
     
         print('Layer %s, Synth Audio Category Prediction: %s'%(
@@ -279,6 +288,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     pckl_output_dict['predicted_labels_out_dict'] = predicted_labels_out_dict
     pckl_output_dict['orig_predictions'] = orig_predictions
     for key in all_outputs:
+        ### UPDATE: make sure all_outputs in right format
         if type(all_outputs[key])==dict:
             for dict_key, dict_value in all_outputs[key].items():
                 if '%s/%s'%(key, dict_key) in metamer_layers:
@@ -292,6 +302,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
                 all_outputs[key] = None
     
     pckl_output_dict['all_outputs_orig'] = all_outputs
+    ### UPDATE: no true predictions - make sure this won't break things
     if type(predictions)==dict:
         for dict_key, dict_value in predictions.items():
             predictions[dict_key] = dict_value.detach().cpu()
@@ -317,6 +328,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     for layer_to_invert in metamer_layers:
         all_distance_measures[layer_to_invert] = {}
         for layer_to_measure in metamer_layers: # pckl_output_dict['all_outputs_orig'].keys():
+            ### UPDATE: 
             met_rep = pckl_output_dict['all_outputs_out_dict'][layer_to_invert][layer_to_measure].numpy().copy().ravel()
             orig_rep = pckl_output_dict['all_outputs_orig'][layer_to_measure].numpy().copy().ravel()
             spearman_rho = compute_spearman_rho_pair([met_rep, orig_rep])
