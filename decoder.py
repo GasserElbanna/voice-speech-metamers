@@ -1,40 +1,49 @@
 import torch
+from collections import defaultdict
 import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from torchvision.transforms import Compose
 
-class LSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1, dropout=0, bidirectional=False):
-        super(LSTM, self).__init__()
-        
-        # Define the LSTM layers
-        self.lstm = nn.LSTM(input_size=input_size,
-                            hidden_size=hidden_size,
-                            num_layers=num_layers,
-                            dropout=dropout,
-                            bidirectional=bidirectional,
-                            batch_first=True)
-        self.linear = nn.Linear(hidden_size, output_size)
+class Speech_Decoder_Linear(torch.nn.Module):
+    def __init__(self, word_vocab=30, d_model=704, hidden_size=512):
+        super(Speech_Decoder_Linear, self).__init__()
+        self.word_vocab = word_vocab # change this after analyzing dataset -> len(vocab_dict)
+        self.linear_project_word = nn.Linear(d_model, hidden_size)
+        self.linear_classifier_word = nn.Linear(hidden_size, self.word_vocab)
+        self.act = nn.ReLU()
 
-    def forward(self, hidden_state):
-        output, (hn, cn) = self.lstm(hidden_state)
-        logits = self.linear(output)
-        return logits
+    def forward(self, x):
+        # Forward decoder pass on word branch
+        word_embedding_decoded = self.act(self.linear_project_word(x))
+        word_logits = self.linear_classifier_word(word_embedding_decoded)
+        return word_logits
     
-    # def init_hidden(self, batch_size):
-    #     # Initialize the hidden states and cell states
-    #     h_0 = [torch.zeros(batch_size, self.hidden_size) for _ in range(self.num_layers)]
-    #     c_0 = [torch.zeros(batch_size, self.hidden_size) for _ in range(self.num_layers)]
-    #     return (h_0, c_0)
+class Speaker_Decoder_Linear(torch.nn.Module):
+    def __init__(self, num_speaker_class=200, d_model=704, hidden_size=512):
+        super(Speaker_Decoder_Linear, self).__init__()
+        self.num_speaker_class = num_speaker_class # change this after analyzing dataset
+        # linear projection for speaker branch
+        self.linear_project_speaker = nn.Linear(d_model,hidden_size)
+        self.linear_classifier_speaker = nn.Linear(hidden_size,self.num_speaker_class)
+        self.act = nn.ReLU()
+
+    def forward(self, x):
+        # Forward decoder pass on speaker branch
+        # average across the frames of the speaker embedding 
+        speaker_embedding = torch.mean(x,dim=1)
+        speaker_embedding_decoded = self.act(self.linear_project_speaker(speaker_embedding))
+        speaker_logits = self.linear_classifier_speaker(speaker_embedding_decoded)
+        return speaker_logits
+
 
 if __name__ == '__main__':
-    # Example usage:
-    input_size = 256
-    hidden_size = 512
-    num_layers = 2
-    output_size = 40
-
-    lstm_model = LSTM(input_size, hidden_size, output_size, num_layers)
-
-    # Test forward pass
-    input_data = torch.randn(4, 100, input_size)  # input tensor of shape (batch, seq_len, input_size)
-    output = lstm_model(input_data)
-    print("Output shape:", output.shape)  # Expected output shape: (batch_size, seq_len, output_size)
+    model = Speech_Decoder_Linear()
+    # x = {}
+    x = torch.ones((2,1500,704))
+    print(x)
+    # compute the forward pass
+    y1, y2 = model(x)
+    # print(y.keys(), len(y["encoder_features_0"]), y["encoder_features_0"][1].shape)
+    print(y1.shape)
+    print(y2.shape)

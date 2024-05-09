@@ -2,20 +2,16 @@
 # The Pytorch Lightning code skeleton is adapted from: https://github.com/nttcslab/byol-a
 
 import os
-import ast
 import fire
 import math
 import shutil
-from glob import glob
 
 from utils import *
-from encoder import Encoder
 from learner import Learner
 from data import DataCollator
 from tokenizer import Tokenizer
-from featurizer import Featurizer
-from decoders.mlp import FrameLevelLinear
-from decoders.lstm import LSTM
+from decoder import Speech_Decoder_Linear, Speaker_Decoder_Linear
+from encoder import Speaker_Encoder, Speech_Encoder, Joint_Encoder
 
 import torch
 from torch.utils.data import DataLoader
@@ -24,157 +20,124 @@ import lightning.pytorch as pl
 from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.strategies.ddp import DDPStrategy
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
 from hf_hub_lightning import HuggingFaceHubCallback
 
-import datasets
-from datasets import Dataset, DatasetDict, load_dataset
-from transformers import Wav2Vec2FeatureExtractor
+from datasets import Dataset, DatasetDict
 
 torch.set_float32_matmul_precision('medium' or 'high')
 
 def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     
     # Load config file
-    finetuning_config = load_yaml_config(config_path)
+    config = load_yaml_config(config_path)
 
     # Essentials
     logger = get_logger(__name__)
-    logger.info(finetuning_config)
-    seed_everything(finetuning_config.seed)
+    logger.info(config)
+    seed_everything(config.seed)
 
-    # 1. Read data and split it into train and test
+    # 1. Read data and split it
 
     #read csv data as dataframe
-    data_name = '*' if finetuning_config.data.data_name == 'all' else finetuning_config.data.data_name
-    data_files = glob(f'{finetuning_config.data.data_dir}/{data_name}_*.csv')
-    df = csv_to_pandas(data_files)
-    df['speaker_id'] = df.speaker_id.astype(str)
-    #convert string representation of list into a list
-    df['phone'] = df.apply(lambda x: ast.literal_eval(x.phone), axis=1)
-
-    #split data into train and test
-    train_df = df.loc[df.split.str.contains('train')]
-    test_df = df.loc[df.split.str.contains('dev')]
+    df = pd.read_csv(config.data.data_path)
 
     #convert dataframes into huggingface dataset
     raw_datasets = DatasetDict()
-    raw_datasets['train'] = Dataset.from_pandas(train_df)
-    raw_datasets["validation"] = Dataset.from_pandas(test_df)
+    raw_datasets["train"] = Dataset.from_pandas(df.loc[df.split == "train"])
+    raw_datasets["validation"] = Dataset.from_pandas(df.loc[df.split == "val"])
+    raw_datasets["test"] = Dataset.from_pandas(df.loc[df.split == "test"])
 
-    # #load audio files
-    # raw_datasets = raw_datasets.map(load_audios)
-    
-    # 2. Define Tokenizer and Feature Extractor
+    # 2. Define Tokenizer
 
     #define a tokenizer for the vocabulary
-    tokenizer = Tokenizer(**finetuning_config.text)
-    #define a feature extractor for the model
-    feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained("facebook/wav2vec2-base", 
-                                                                cache_dir=finetuning_config.cache_dir)
+    tokenizer = Tokenizer(**config.text)
     
     # 3. Preprocess and tokenize data
 
-    # load via mapped files via path
+    #define paths for cached files
     cache_file_names = None
-    if finetuning_config.data.train_cache_file_path is not None:
-        cache_file_names = {"train": f'{finetuning_config.data.train_cache_file_path}/finetune_train_{finetuning_config.data.data_name}', 
-                            "validation": f'{finetuning_config.data.validation_cache_file_path}/finetune_dev_{finetuning_config.data.data_name}'}
-    remove_columns = raw_datasets['train'].column_names
-    remove_columns.remove('text')
+    if config.data.cache_file_path is not None:
+        cache_file_names = {"train": f"{config.data.cache_file_path}/train", 
+                            "validation": f"{config.data.cache_file_path}/val",
+                            "test": f"{config.data.cache_file_path}/test"}
+    #load, resample and tokenize audio files
+    remove_columns = ["wav_path", "split", "client_id", "Unnamed: 0", "sr", "gender", "total_file_duration_in_s", "__index_level_0__"]
     vectorized_datasets = raw_datasets.map(prepare_data,
-                                       remove_columns=remove_columns,
-                                       cache_file_names=cache_file_names,
-                                       fn_kwargs={"feat_ext":feature_extractor, "tokenizer":tokenizer, "sr": finetuning_config.data.sampling_rate})
+                                        remove_columns=remove_columns,
+                                        cache_file_names=cache_file_names,
+                                        fn_kwargs={"target_sr": config.data.sampling_rate, "tokenizer": tokenizer})
     
     # 4. Define DataCollator and DataLoaders
-    data_collator = DataCollator(
-        feature_extractor=feature_extractor,
-        tokenizer=tokenizer
-    )
+
+    data_collator = DataCollator()
     train_dataloader = DataLoader(
-        vectorized_datasets["train"],
-        shuffle=True,
-        collate_fn=data_collator,
-        batch_size=finetuning_config.dataloader.per_device_train_batch_size,
-        num_workers=finetuning_config.dataloader.num_workers,
-    )
+            vectorized_datasets["train"],
+            shuffle=True,
+            collate_fn=data_collator,
+            batch_size=config.dataloader.per_device_train_batch_size,
+            num_workers=config.dataloader.num_workers,
+        )
     eval_dataloader = DataLoader(
         vectorized_datasets["validation"], 
         collate_fn=data_collator, 
-        batch_size=finetuning_config.dataloader.per_device_eval_batch_size,
-        num_workers=finetuning_config.dataloader.num_workers,
+        batch_size=config.dataloader.per_device_eval_batch_size,
+        num_workers=config.dataloader.num_workers,
     )
     
-    # 5. Define Encoder (Wav2Vec2) model and a Decoder model
+    # 5. Define Encoders (ECAPA and Whisper) and Joint model
 
     #load pre-trained encoder model
-    encoder = Encoder(finetuning_config.encoder.model_name,
-                    finetuning_config.encoder.model_path,
-                    finetuning_config.encoder.model_cache)
-    
-    select_layer = 'all' if layer_num is None else int(layer_num)
-    print(select_layer)
-    featurizer = Featurizer(finetuning_config.encoder.model_dim, 
-                            finetuning_config.encoder.num_layers, 
-                            select_layer)
-    
-    decoder = eval(finetuning_config.decoder.model)(
-                finetuning_config.decoder.proj_dim,
-                tokenizer.vocab_size,
-                finetuning_config.decoder.hiddens,
-                finetuning_config.decoder.activations,
-                )
+    speaker_encoder = Speaker_Encoder(config.encoder.model_cache)
+    speech_encoder = Speech_Encoder(config.encoder.model_cache)
+
+    #define joint encoder
+    saganet = Joint_Encoder(config.saganet.d_model,
+                            config.saganet.num_head,
+                            config.saganet.dim_feedforward,
+                            config.saganet.num_layers)
+
+    #define decoders
+    speech_decoder = Speech_Decoder_Linear()
+    speaker_decoder = Speaker_Decoder_Linear()
 
     logger.info('Loading models and dataloaders is done!')
 
-    # 6. Define training parameters and callbacks
+    # 7. Define training parameters and callbacks
 
     #calculate the number of training steps.
-    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / finetuning_config.trainer.gradient_accumulation_steps)
-    total_batch_size = finetuning_config.dataloader.per_device_train_batch_size * finetuning_config.trainer.num_gpus * finetuning_config.trainer.gradient_accumulation_steps
+    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / config.trainer.gradient_accumulation_steps)
+    total_batch_size = config.dataloader.per_device_train_batch_size * config.trainer.num_gpus * config.trainer.gradient_accumulation_steps
 
     #calculate number of training epochs
-    num_train_epochs = math.ceil(finetuning_config.trainer.max_train_steps / num_update_steps_per_epoch)
+    num_train_epochs = math.ceil(config.trainer.max_train_steps / num_update_steps_per_epoch)
 
     #define name of the directory saving the checkpoints
-    # name = (f"{finetuning_config.encoder.model_path.split('/')[-1]}"
-    #         f'-finetune'
-    #         f'-wordseparator'
-    #         # f'-decoder{finetuning_config.decoder.proj_dim}'
-    #         f'-layer{finetuning_config.encoder.select_layer}'
-    #         f'-bs{finetuning_config.dataloader.per_device_train_batch_size}'
-    #         f'-e{num_train_epochs}'
-    #         f'-lr{finetuning_config.optimization.learning_rate}'
-    #         f'-rs{finetuning_config.seed}'
-    #         )
-    name = (f"{finetuning_config.encoder.model_name}"
-            f'_enclayer-{select_layer}'
-            f'_data-{finetuning_config.data.data_name}'
-            f'_decoder-{finetuning_config.decoder.model}'
-            f'_bs-{finetuning_config.dataloader.per_device_train_batch_size}'
+    name = (f"saganet"
+            f'_data-{config.data.data_name}'
+            f'_decoder-{config.decoder.model}'
+            f'_bs-{config.dataloader.per_device_train_batch_size}'
             f'_e-{num_train_epochs}'
-            f'_lr-{finetuning_config.optimization.learning_rate}'
-            f'_rs-{finetuning_config.seed}'
+            f'_lr-{config.optimization.learning_rate}'
+            f'_rs-{config.seed}'
             )
     
-    dir_name = f'{finetuning_config.callbacks.checkpoint_folder}/{name}'
+    dir_name = f'{config.callbacks.checkpoint_folder}/{name}'
     os.makedirs(dir_name, exist_ok=True)
     shutil.copy(config_path, dir_name)
 
     #define callbacks and logger
     model_checkpoint = ModelCheckpoint(dirpath=dir_name,
-                                       filename='best{epoch:02d}-val_per{val_PER:.2f}', 
-                                       monitor='val_PER',
+                                       filename='best{epoch:02d}-val_loss{val_PER:.2f}', 
+                                       monitor='val_loss',
                                        save_last=True,
                                        save_top_k=1, save_weights_only=False,
                                        auto_insert_metric_name=False)
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    wandb_logger = WandbLogger(save_dir=finetuning_config.callbacks.checkpoint_folder, version=name, project=f"{finetuning_config.encoder.model_name}_{finetuning_config.decoder.model}_pr")
+    # wandb_logger = WandbLogger(save_dir=config.callbacks.checkpoint_folder, version=name, project=f"SAGANet")
     # early_stop_callback = EarlyStopping(monitor="val_PER", min_delta=0.005, patience=10, verbose=False, mode="min")
     callbacks = [model_checkpoint, lr_monitor]
-    if finetuning_config.callbacks.push_to_repo:
+    if config.callbacks.push_to_repo:
         local_dir = f'{dir_name}/huggingface_repo'
         os.makedirs(local_dir, exist_ok=True)
         hf_push_repo = HuggingFaceHubCallback(f'gelbanna/{name}', dir_name=dir_name, local_dir=local_dir, git_user='GasserElbanna')
@@ -183,24 +146,24 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(vectorized_datasets['train'])}")
     logger.info(f"  Num Epochs = {num_train_epochs}")
-    logger.info(f"  Instantaneous batch size per device = {finetuning_config.dataloader.per_device_train_batch_size}")
+    logger.info(f"  Instantaneous batch size per device = {config.dataloader.per_device_train_batch_size}")
     logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
-    logger.info(f"  Gradient Accumulation steps = {finetuning_config.trainer.gradient_accumulation_steps}")
-    logger.info(f"  Total optimization steps = {finetuning_config.trainer.max_train_steps}")
+    logger.info(f"  Gradient Accumulation steps = {config.trainer.gradient_accumulation_steps}")
+    logger.info(f"  Total optimization steps = {config.trainer.max_train_steps}")
 
     # 7. Define Trainer and Learner
     trainer = pl.Trainer(accelerator='gpu',
-                        devices=finetuning_config.trainer.num_gpus,
-                        num_nodes=finetuning_config.trainer.num_nodes,
+                        devices=config.trainer.num_gpus,
+                        num_nodes=config.trainer.num_nodes,
                         strategy=DDPStrategy(find_unused_parameters=False),
                         max_epochs=num_train_epochs,
                         callbacks=callbacks,
-                        accumulate_grad_batches=finetuning_config.trainer.gradient_accumulation_steps,
+                        accumulate_grad_batches=config.trainer.gradient_accumulation_steps,
                         logger=wandb_logger,
-                        gradient_clip_val=finetuning_config.trainer.gradient_clip_val,
+                        gradient_clip_val=config.trainer.gradient_clip_val,
                         gradient_clip_algorithm='norm',
-                        log_every_n_steps=finetuning_config.trainer.gradient_accumulation_steps,
-                        val_check_interval=finetuning_config.trainer.check_val_steps,
+                        log_every_n_steps=config.trainer.gradient_accumulation_steps,
+                        val_check_interval=config.trainer.check_val_steps,
                         # deterministic=True,
                         fast_dev_run=False,
                         num_sanity_val_steps=0,
@@ -210,17 +173,19 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     ckpt_path=None
 
     global_step_offset = None
-    if finetuning_config.trainer.resume or os.path.isfile(f'{dir_name}/last.ckpt'):
+    if config.trainer.resume or os.path.isfile(f'{dir_name}/last.ckpt'):
         ckpt_path = f'{dir_name}/last.ckpt'
         checkpoint = torch.load(ckpt_path, map_location='cpu')
         global_step_offset = checkpoint["global_step"]
         logger.info(f'Global Step Restored:{global_step_offset}')
     
-    learner = Learner(config=finetuning_config, 
+    learner = Learner(config=config, 
                     tokenizer=tokenizer,
-                    encoder=encoder,
-                    featurizer=featurizer,
-                    decoder=decoder,
+                    speech_encoder=speech_encoder,
+                    speaker_encoder=speaker_encoder,
+                    joint_encoder=saganet,
+                    speech_decoder=speech_decoder,
+                    speaker_decoder = speaker_decoder,
                     global_step=global_step_offset)
 
     trainer.fit(learner, train_dataloader, eval_dataloader, ckpt_path=ckpt_path)

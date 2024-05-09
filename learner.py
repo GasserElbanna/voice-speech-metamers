@@ -1,7 +1,7 @@
 """Training Learner definitions
 """
 import numpy as np
-from utils import per
+from utils import cer
 from collections import defaultdict
 
 import torch
@@ -14,9 +14,11 @@ class Learner(pl.LightningModule):
     def __init__(self, 
                 config, 
                 tokenizer,
-                encoder,
-                featurizer,
-                decoder,
+                speech_encoder,
+                speaker_encoder,
+                joint_encoder,
+                speech_decoder,
+                speaker_decoder,
                 global_step=None,
                 ckpt_dir=None):
         
@@ -24,21 +26,25 @@ class Learner(pl.LightningModule):
             self.config = config
             self.tokenizer = tokenizer
             
-            self.encoder = encoder
-            for param in self.encoder.parameters():
+            self.speech_encoder = speech_encoder
+            for param in self.speech_encoder.parameters():
                 param.requires_grad = False
 
-            self.featurizer = featurizer
-            # self.norm = nn.LayerNorm(self.config.encoder.model_dim)
-            self.projector = nn.Linear(self.config.encoder.model_dim, 
-                                    self.config.decoder.proj_dim)
-            self.decoder = decoder
+            self.speaker_encoder = speaker_encoder
+            for param in self.speaker_encoder.parameters():
+                param.requires_grad = False
+
+            self.joint_encoder = joint_encoder
+
+            self.speech_decoder = speech_decoder
+            self.speaker_decoder = speaker_decoder
 
             self.ctc_objective = nn.CTCLoss(
                                 blank=self.tokenizer.pad_idx,
                                 zero_infinity=True,
                                 )
-            self.metric = per
+            self.cross_entropy_objective = nn.CrossEntropyLoss()
+            self.metric_speech = cer
 
             self.val_logs = {}
             self.completed_steps = 0
@@ -48,41 +54,52 @@ class Learner(pl.LightningModule):
     
     def _shared_eval_step(self, batch, step=None):
         #extract encoder features
-        features = self.encoder(batch['input_values'])
+        features_speech = self.encoder_speech(batch['input_values'])
+        features_speaker = self.encoder_speaker(batch['input_values'])
         
-        #select the layers of interest
-        features = self.featurizer(features)
+        #concatenate the speech and speaker embeddings along the embedding dimension
+        batch, feature, embeddings = features_speech.shape
+        features_speaker = features_speaker.expand(-1, feature, -1)
+        features_concatenated = torch.cat((features_speech, features_speaker), dim=-1)
+
+        #pass the concatenated embedding through joint encoder
+        features_joint = self.encoder_joint(features_concatenated)
 
         #get the length of the features and labels
-        features_len = torch.IntTensor([feat.shape[0] for feat in features])
-        labels_len = torch.IntTensor([len(label) for label in batch['labels']])
-        print(features_len, labels_len)
+        features_len = torch.IntTensor([feat.shape[0] for feat in features_joint])
+        labels_speech_len = torch.IntTensor([len(label) for label in batch['speech_labels']])
+        print(features_len, labels_speech_len)
 
         #pad both features and labels
-        features = pad_sequence(features, batch_first=True)
-        labels = pad_sequence(
-                            batch['labels'],
+        features_joint = pad_sequence(features_joint, batch_first=True)
+        speech_labels = pad_sequence(
+                            batch['speech_labels'],
                             batch_first=True,
                             padding_value=self.tokenizer.pad_idx,
                             )
+
+        #get the word and speaker logits
+        logits_speech = self.decoder_speech(features_joint)
+        logits_speaker = self.decoder_speaker(features_joint)
         
-        #project features to lower dimension
-        # features = self.norm(features)
-        features_proj = self.projector(features)
-        #pass features to decoder to get logits
-        logits = self.decoder(features_proj)
+        
         #compute the prob for each class
-        log_probs = nn.functional.log_softmax(logits, dim=-1)
+        log_probs_speech = nn.functional.log_softmax(logits_speech, dim=-1)
+        # log_probs_speaker = nn.functional.log_softmax(logits_speaker, dim=-1)
 
         #compute CTC loss
-        loss = self.ctc_objective(
-            log_probs.transpose(0, 1),  # (N, T, C) -> (T, N, C)
-            labels,
+        loss_speech = self.ctc_objective(
+            log_probs_speech.transpose(0, 1),  # (N, T, C) -> (T, N, C)
+            speech_labels,
             features_len,
-            labels_len,
+            labels_speech_len,
         )
+        loss_speaker = self.cross_entropy_objective(logits_speaker, batch['speaker_labels']) ## TODO make sure this is correct
+        loss = loss_speech + loss_speaker
 
-        pred_tokens = log_probs.argmax(dim=-1)
+        acc = (batch['speaker_labels'] == torch.argmax(logits_speaker, dim=1)).float().mean()
+
+        pred_tokens = log_probs_speech.argmax(dim=-1)
         filtered_tokens = []
         for pred_token in pred_tokens:
             pred_token = pred_token.unique_consecutive()
@@ -96,25 +113,24 @@ class Learner(pl.LightningModule):
             self.tokenizer.decode(h) for h in filtered_tokens
         ]
         
-        groundtruth = [self.tokenizer.decode(g.tolist()) for g in batch['labels']]
-        # print('True:', groundtruth)
-        # print('Pred:', hypothesis)
-
+        groundtruth = [self.tokenizer.decode(g.tolist()) for g in batch['speech_labels']]
+        
         if step == 'test':
             per_values = [self.metric([hyp], [gt]) for hyp, gt in zip(hypothesis, groundtruth)]
             text = batch['text']
             return loss, per_values, hypothesis, groundtruth, text
 
-        per_value = self.metric(hypothesis, groundtruth)
-        return loss, per_value
+        cer_value = self.metric(hypothesis, groundtruth)
+        return loss, cer_value*100, acc*100
 
     def training_step(self, batch):
         
-        loss, per_value = self._shared_eval_step(batch)
+        loss, cer_value, acc = self._shared_eval_step(batch)
         
         self.log_dict({
-                    "CTC loss": loss,
-                    "PER": per_value,
+                    "Total loss": loss,
+                    "CER": cer_value,
+                    "Accuracy": acc,
                 }, on_step=True, on_epoch=False, sync_dist=True)
         return loss
     
@@ -126,15 +142,17 @@ class Learner(pl.LightningModule):
     def on_validation_epoch_start(self):
          self.val_logs = {
             "val_CTC_loss": 0,
-            "val_PER": 0,
+            "val_CER": 0,
+            "val_Accuracy": 0,
         }
 
     def validation_step(self, batch, _):
         
-        loss, per_value = self._shared_eval_step(batch)
+        loss, cer_value, acc = self._shared_eval_step(batch)
 
-        self.val_logs["val_CTC_loss"] = loss
-        self.val_logs["val_PER"] = per_value
+        self.val_logs["val_Total_loss"] = loss
+        self.val_logs["val_CER"] = cer_value
+        self.val_logs["val_Accuracy"] = acc
 
         self.val_logs = {k: v for k, v in self.val_logs.items()}
         for k, v in self.val_logs.items():
@@ -168,23 +186,26 @@ class Learner(pl.LightningModule):
     
     def forward(self, x):
         #extract encoder features
-        features = self.encoder(x['input_values'])
-
-        #select the layers of interest
-        features = self.featurizer(features)
-
-        #pad both features and labels
-        features = pad_sequence(features, batch_first=True)
+        features_speech = self.encoder_speech(x['input_values'])
+        features_speaker = self.encoder_speaker(x['input_values'])
         
-        #project features to lower dimension
-        features_proj = self.projector(features)
+        #concatenate the speech and speaker embeddings along the embedding dimension
+        batch, feature, embeddings = features_speech.shape
+        features_speaker = features_speaker.expand(-1, feature, -1)
+        features_concatenated = torch.cat((features_speech, features_speaker), dim=-1)
 
-        #pass features to decoder to get logits
-        logits = self.decoder(features_proj)
+        #pass the concatenated embedding through joint encoder
+        features_joint = self.encoder_joint(features_concatenated)
+
+        #get the word and speaker logits
+        logits_speech = self.decoder_speech(features_joint)
+        logits_speaker = self.decoder_speaker(features_joint)                    
+        
         #compute the prob for each class
-        log_probs = nn.functional.log_softmax(logits, dim=-1)
+        log_probs_speech = nn.functional.log_softmax(logits_speech, dim=-1)
+        log_probs_speaker = nn.functional.log_softmax(logits_speaker, dim=-1)
 
-        pred_tokens = log_probs.argmax(dim=-1)
+        pred_tokens = log_probs_speech.argmax(dim=-1)
         filtered_tokens = []
         for pred_token in pred_tokens:
             pred_token = pred_token.unique_consecutive()
