@@ -14,8 +14,8 @@ class Learner(pl.LightningModule):
     def __init__(self, 
                 config, 
                 tokenizer,
-                encoder_speech,
-                encoder_speaker,
+                speech_encoder,
+                speaker_encoder,
                 encoder_joint,
                 decoder_speech,
                 decoder_speaker,
@@ -26,12 +26,12 @@ class Learner(pl.LightningModule):
             self.config = config
             self.tokenizer = tokenizer
             
-            self.encoder_speech = encoder_speech
-            for param in self.encoder_speech.parameters():
+            self.speech_encoder = speech_encoder
+            for param in self.speech_encoder.parameters():
                 param.requires_grad = False
 
-            self.encoder_speaker = encoder_speaker
-            for param in self.encoder_speaker.parameters():
+            self.speaker_encoder = speaker_encoder
+            for param in self.speaker_encoder.parameters():
                 param.requires_grad = False
 
             self.encoder_joint = encoder_joint

@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
 class Speech_Decoder_Linear(torch.nn.Module):
-    def __init__(self,word_vocab=50,d_model=704):
+    def __init__(self, word_vocab=50, d_model=704):
         super(Speech_Decoder_Linear, self).__init__()
         self.word_vocab = word_vocab # change this after analyzing dataset -> len(vocab_dict)
         self.linear_project_word = nn.Linear(d_model,1)
@@ -20,7 +20,7 @@ class Speech_Decoder_Linear(torch.nn.Module):
         return word_logits
     
 class Speaker_Decoder_Linear(torch.nn.Module):
-    def __init__(self,num_speaker_class=500,d_model=704):
+    def __init__(self, num_speaker_class=200, d_model=704):
         super(Speaker_Decoder_Linear, self).__init__()
         self.num_speaker_class = num_speaker_class # change this after analyzing dataset
         # linear projection for speaker branch
