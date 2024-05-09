@@ -113,9 +113,17 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     num_train_epochs = math.ceil(config.trainer.max_train_steps / num_update_steps_per_epoch)
 
     #define name of the directory saving the checkpoints
+    # name = (f"saganet"
+    #         f'_data-{config.data.data_path}'
+    #         f'_decoder-{config.saganet.model}'
+    #         f'_bs-{config.dataloader.per_device_train_batch_size}'
+    #         f'_e-{num_train_epochs}'
+    #         f'_lr-{config.optimization.learning_rate}'
+    #         f'_rs-{config.seed}'
+    #         )
+    
     name = (f"saganet"
             f'_data-{config.data.data_path}'
-            f'_decoder-{config.decoder.model}'
             f'_bs-{config.dataloader.per_device_train_batch_size}'
             f'_e-{num_train_epochs}'
             f'_lr-{config.optimization.learning_rate}'
