@@ -67,9 +67,10 @@ class Learner(pl.LightningModule):
 
         #get the length of the features and labels
         features_len = torch.IntTensor([feat.shape[0] for feat in features_joint])
-        print(batch['speech_labels'])
+        ## TODO NEED TO DEBUG FROM HERE
         labels_speech_len = torch.IntTensor([len(label) for label in batch['speech_labels']])
-        print(features_len, labels_speech_len)
+        
+        #print(features_len, labels_speech_len)
 
         #pad both features and labels
         features_joint = pad_sequence(features_joint, batch_first=True)
@@ -187,8 +188,8 @@ class Learner(pl.LightningModule):
     
     def forward(self, x):
         #extract encoder features
-        features_speech = self.encoder_speech(x['input_values'])
-        features_speaker = self.encoder_speaker(x['input_values'])
+        features_speech = self.speech_encoder(x['input_values'])
+        features_speaker = self.speaker_encoder(x['input_values'])
         
         #concatenate the speech and speaker embeddings along the embedding dimension
         batch, feature, embeddings = features_speech.shape
@@ -196,11 +197,11 @@ class Learner(pl.LightningModule):
         features_concatenated = torch.cat((features_speech, features_speaker), dim=-1)
 
         #pass the concatenated embedding through joint encoder
-        features_joint = self.encoder_joint(features_concatenated)
+        features_joint = self.joint_encoder(features_concatenated)
 
         #get the word and speaker logits
-        logits_speech = self.decoder_speech(features_joint)
-        logits_speaker = self.decoder_speaker(features_joint)                    
+        logits_speech = self.speech_decoder(features_joint)
+        logits_speaker = self.speaker_decoder(features_joint)                    
         
         #compute the prob for each class
         log_probs_speech = nn.functional.log_softmax(logits_speech, dim=-1)
