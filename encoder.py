@@ -13,6 +13,8 @@ class Speech_Encoder(torch.nn.Module):
         #self.whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
 
     def _preprocess(self, input_):
+        if len(input_.shape)>1:
+            input_ = torch.squeeze(input_)
         input_feat = self.whisper_feature_extractor(input_, sampling_rate=self.sampling_rate, return_tensors="pt")
         return input_feat.input_features
     
