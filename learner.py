@@ -63,7 +63,7 @@ class Learner(pl.LightningModule):
         features_concatenated = torch.cat((features_speech, features_speaker), dim=-1)
 
         #pass the concatenated embedding through joint encoder
-        features_joint = self.encoder_joint(features_concatenated)
+        features_joint = self.joint_encoder(features_concatenated)
 
         #get the length of the features and labels
         features_len = torch.IntTensor([feat.shape[0] for feat in features_joint])
