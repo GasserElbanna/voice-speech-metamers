@@ -142,7 +142,7 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
                                        save_top_k=1, save_weights_only=False,
                                        auto_insert_metric_name=False)
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    # wandb_logger = WandbLogger(save_dir=config.callbacks.checkpoint_folder, version=name, project=f"SAGANet")
+    #wandb_logger = WandbLogger(save_dir=config.callbacks.checkpoint_folder, version=name, project=f"SAGANet")
     # early_stop_callback = EarlyStopping(monitor="val_PER", min_delta=0.005, patience=10, verbose=False, mode="min")
     callbacks = [model_checkpoint, lr_monitor]
     if config.callbacks.push_to_repo:
@@ -167,7 +167,7 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
                         max_epochs=num_train_epochs,
                         callbacks=callbacks,
                         accumulate_grad_batches=config.trainer.gradient_accumulation_steps,
-                        logger=WandbLogger,
+                        #logger=wandb_logger,
                         gradient_clip_val=config.trainer.gradient_clip_val,
                         gradient_clip_algorithm='norm',
                         log_every_n_steps=config.trainer.gradient_accumulation_steps,
