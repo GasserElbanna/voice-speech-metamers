@@ -6,34 +6,34 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
 class Speech_Decoder_Linear(torch.nn.Module):
-    def __init__(self, word_vocab=50, d_model=704):
+    def __init__(self, word_vocab=30, d_model=704, hidden_size=512):
         super(Speech_Decoder_Linear, self).__init__()
         self.word_vocab = word_vocab # change this after analyzing dataset -> len(vocab_dict)
-        self.linear_project_word = nn.Linear(d_model,1)
-        self.linear_classifier_word = nn.Linear(1,self.word_vocab) 
+        self.linear_project_word = nn.Linear(d_model, hidden_size)
+        self.linear_classifier_word = nn.Linear(hidden_size, self.word_vocab)
+        self.act = nn.ReLU()
 
     def forward(self, x):
         # Forward decoder pass on word branch
-        word_embedding_decoded = self.linear_project_word(x)
+        word_embedding_decoded = self.act(self.linear_project_word(x))
         word_logits = self.linear_classifier_word(word_embedding_decoded)
-
         return word_logits
     
 class Speaker_Decoder_Linear(torch.nn.Module):
-    def __init__(self, num_speaker_class=200, d_model=704):
+    def __init__(self, num_speaker_class=200, d_model=704, hidden_size=512):
         super(Speaker_Decoder_Linear, self).__init__()
         self.num_speaker_class = num_speaker_class # change this after analyzing dataset
         # linear projection for speaker branch
-        self.linear_project_speaker = nn.Linear(d_model,1)
-        self.linear_classifier_speaker = nn.Linear(1,self.num_speaker_class) 
+        self.linear_project_speaker = nn.Linear(d_model,hidden_size)
+        self.linear_classifier_speaker = nn.Linear(hidden_size,self.num_speaker_class)
+        self.act = nn.ReLU()
 
     def forward(self, x):
         # Forward decoder pass on speaker branch
         # average across the frames of the speaker embedding 
         speaker_embedding = torch.mean(x,dim=1)
-        speaker_embedding_decoded = self.linear_project_speaker(speaker_embedding)
+        speaker_embedding_decoded = self.act(self.linear_project_speaker(speaker_embedding))
         speaker_logits = self.linear_classifier_speaker(speaker_embedding_decoded)
-
         return speaker_logits
 
 

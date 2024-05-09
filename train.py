@@ -7,10 +7,11 @@ import math
 import shutil
 
 from utils import *
-from encoder import Speaker_Encoder, Speech_Encoder, Joint_Encoder
 from learner import Learner
 from data import DataCollator
 from tokenizer import Tokenizer
+from decoder import Speech_Decoder_Linear, Speaker_Decoder_Linear
+from encoder import Speaker_Encoder, Speech_Encoder, Joint_Encoder
 
 import torch
 from torch.utils.data import DataLoader
@@ -96,9 +97,13 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
                             config.saganet.dim_feedforward,
                             config.saganet.num_layers)
 
+    #define decoders
+    speech_decoder = Speech_Decoder_Linear()
+    speaker_decoder = Speaker_Decoder_Linear()
+
     logger.info('Loading models and dataloaders is done!')
 
-    # 6. Define training parameters and callbacks
+    # 7. Define training parameters and callbacks
 
     #calculate the number of training steps.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / config.trainer.gradient_accumulation_steps)
@@ -129,7 +134,7 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
                                        save_top_k=1, save_weights_only=False,
                                        auto_insert_metric_name=False)
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    wandb_logger = WandbLogger(save_dir=config.callbacks.checkpoint_folder, version=name, project=f"SAGANet")
+    # wandb_logger = WandbLogger(save_dir=config.callbacks.checkpoint_folder, version=name, project=f"SAGANet")
     # early_stop_callback = EarlyStopping(monitor="val_PER", min_delta=0.005, patience=10, verbose=False, mode="min")
     callbacks = [model_checkpoint, lr_monitor]
     if config.callbacks.push_to_repo:
@@ -178,7 +183,9 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
                     tokenizer=tokenizer,
                     speech_encoder=speech_encoder,
                     speaker_encoder=speaker_encoder,
-                    decoder=decoder,
+                    joint_encoder=saganet,
+                    speech_decoder=speech_decoder,
+                    speaker_decoder = speaker_decoder,
                     global_step=global_step_offset)
 
     trainer.fit(learner, train_dataloader, eval_dataloader, ckpt_path=ckpt_path)
