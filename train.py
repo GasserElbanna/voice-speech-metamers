@@ -167,7 +167,7 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
                         max_epochs=num_train_epochs,
                         callbacks=callbacks,
                         accumulate_grad_batches=config.trainer.gradient_accumulation_steps,
-                        logger=wandb_logger,
+                        logger=WandbLogger,
                         gradient_clip_val=config.trainer.gradient_clip_val,
                         gradient_clip_algorithm='norm',
                         log_every_n_steps=config.trainer.gradient_accumulation_steps,
