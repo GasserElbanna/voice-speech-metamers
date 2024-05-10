@@ -9,9 +9,9 @@
 #SBATCH --exclude=node093,node040,node094
 #SBATCH --partition=mcdermott
 
-module add openmind/miniconda/2020-01-29-py3.7
-module add openmind/cudnn/9.1-7.0.5
-module add openmind/cuda/9.1
+# module add openmind/miniconda/2020-01-29-py3.7
+# module add openmind/cudnn/9.1-7.0.5
+# module add openmind/cuda/9.1
 
 # export CONDA_ENVS_PATH=~/my-envs:/om4/group/mcdermott/user/jfeather/conda_envs_files
 # source activate /om4/group/mcdermott/user/jfeather/conda_envs_files/pytorch

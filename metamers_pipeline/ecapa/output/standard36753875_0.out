@@ -1,0 +1,11 @@
+Generating metamer for sound: /om2/user/amagaro/voice-speech-metamers/metamers_pipeline/kell2018/metamers/psychophysics_wsj400_jsintest_inversion_loss_layer_RS0_I3000_N8/0_SOUND_million/orig.wav
+resampling audio
+Loaded in ECAPA model
+Generating metamer
+  0%|          | 0/3000 [00:00<?, ?it/s]  0%|          | 0/3000 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/net/vast-storage/scratch/vast/mcdermott/salavill/misc/voice-speech-metamers/metamers_pipeline/ecapa/make_ecapa_metamers.py", line 150, in <module>
+    xadv = get_adv_examples(im_n_initialized)
+  File "/net/vast-storage/scratch/vast/mcdermott/salavill/misc/voice-speech-metamers/metamers_pipeline/ecapa/make_ecapa_metamers.py", line 88, in get_adv_examples
+    iterator.set_description(f"{grad.max()}")
+AttributeError: 'tuple' object has no attribute 'max'

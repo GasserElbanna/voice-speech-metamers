@@ -2,7 +2,7 @@ import torch
 import torchaudio
 import torchaudio.transforms as T
 import sys
-import tqdm
+from tqdm import tqdm
 import scipy
 
 from speechbrain.inference.speaker import EncoderClassifier
@@ -82,14 +82,15 @@ def get_adv_examples(x):
 
         loss = torch.mean(losses)
 
-        if step.use_grad:
-            if est_grad is None:
-                grad, = torch.autograd.grad(m * loss, [x])
+        # if step.use_grad:
+        #     if est_grad is None:
+        grad, = torch.autograd.grad(m * loss, [x])
+        iterator.set_description(f"{losses.shape}")
             # else:
             #     f = lambda _x, _y: m * calc_loss(step.to_image(_x), _y)[0]
             #     grad = helpers.calc_est_grad(f, x, target, *est_grad)
-        else:
-            grad = None
+        # else:
+        #     grad = None
 
         with torch.no_grad():
             args = [losses, best_loss, x, best_x]
@@ -97,7 +98,7 @@ def get_adv_examples(x):
 
             x = step.step(x, grad)
             x = step.project(x)
-            if do_tqdm: iterator.set_description("Current loss: {l}".format(l=loss))
+            if do_tqdm: iterator.set_description("Current loss: {l}, {g}".format(l=loss*m, g=grad))
 
     # Save computation (don't compute last loss) if not use_best
     if not use_best: 
@@ -132,8 +133,8 @@ print('Loaded in ECAPA model')
 target = model.encode_batch(signal)[0]
 
 # initialize random noise
-im_n_initialized = [(torch.randn_like(signal)) * noise_scale][0]
-
+im_n_initialized = [(torch.randn_like(signal, requires_grad=True)) * noise_scale][0]
+print(im_n_initialized.requires_grad)
 # get loss function
 calc_loss = InversionLossLayer_ecapa(normalize_loss = normalize_loss)
 
