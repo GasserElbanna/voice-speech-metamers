@@ -1,7 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=met_resnet50
-##SBATCH --output=output/standard%A_%a.out
-##SBATCH --error=output/standard%A_%a.err
+#SBATCH --output=output/standard%A_%a.out
 #SBATCH --mem=4000
 #SBATCH --time=9:00:00
 #SBATCH --gres=gpu:1
@@ -14,8 +13,9 @@ module add openmind/miniconda/2020-01-29-py3.7
 module add openmind/cudnn/9.1-7.0.5
 module add openmind/cuda/9.1
 
-export CONDA_ENVS_PATH=~/my-envs:/om4/group/mcdermott/user/jfeather/conda_envs_files
+# export CONDA_ENVS_PATH=~/my-envs:/om4/group/mcdermott/user/jfeather/conda_envs_files
 # source activate /om4/group/mcdermott/user/jfeather/conda_envs_files/pytorch
 source activate metamer310
-cp ../make_metamers.py .
-python make_metamers.py $SLURM_ARRAY_TASK_ID -S -I 3000 -N 8 -L inversion_loss_layer_ecapa
+
+# cp ../make_metamers.py .
+python make_ecapa_metamers.py $SLURM_ARRAY_TASK_ID
