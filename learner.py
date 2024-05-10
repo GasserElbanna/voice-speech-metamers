@@ -58,16 +58,15 @@ class Learner(pl.LightningModule):
         features_speaker = self.speaker_encoder(batch['input_values'])
         
         #concatenate the speech and speaker embeddings along the embedding dimension
-        batch, feature, embeddings = features_speech.shape
+        feature = features_speech.shape[1]
         features_speaker = features_speaker.expand(-1, feature, -1)
         features_concatenated = torch.cat((features_speech, features_speaker), dim=-1)
 
         #pass the concatenated embedding through joint encoder
         features_joint = self.joint_encoder(features_concatenated)
-
+        
         #get the length of the features and labels
         features_len = torch.IntTensor([feat.shape[0] for feat in features_joint])
-        ## TODO NEED TO DEBUG FROM HERE
         labels_speech_len = torch.IntTensor([len(label) for label in batch['speech_labels']])
         
         #print(features_len, labels_speech_len)
@@ -96,7 +95,7 @@ class Learner(pl.LightningModule):
             features_len,
             labels_speech_len,
         )
-        loss_speaker = self.cross_entropy_objective(logits_speaker, batch['speaker_labels']) ## TODO make sure this is correct
+        loss_speaker = self.cross_entropy_objective(logits_speaker, batch['speaker_labels'])
         loss = loss_speech + loss_speaker
 
         acc = (batch['speaker_labels'] == torch.argmax(logits_speaker, dim=1)).float().mean()
@@ -122,7 +121,7 @@ class Learner(pl.LightningModule):
             text = batch['text']
             return loss, per_values, hypothesis, groundtruth, text
 
-        cer_value = self.metric(hypothesis, groundtruth)
+        cer_value = self.metric_speech(hypothesis, groundtruth)
         return loss, cer_value*100, acc*100
 
     def training_step(self, batch):

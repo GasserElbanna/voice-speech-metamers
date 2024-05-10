@@ -21,13 +21,11 @@ from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.strategies.ddp import DDPStrategy
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 
-from hf_hub_lightning import HuggingFaceHubCallback
-
 from datasets import Dataset, DatasetDict
 
 torch.set_float32_matmul_precision('medium' or 'high')
 
-def main(config_path='finetune_config.yaml', layer_num=None) -> None:
+def main(config_path='config.yaml', layer_num=None) -> None:
     
     # Load config file
     config = load_yaml_config(config_path)
@@ -123,7 +121,10 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     #         )
     
     name = (f"saganet"
-            f'_data-{config.data.data_path}'
+            f'_d-{config.saganet.d_model}'
+            f'_atthead-{config.saganet.num_head}'
+            f'_ffd-{config.saganet.dim_feedforward}'
+            f'_num_layers-{config.saganet.num_layers}'
             f'_bs-{config.dataloader.per_device_train_batch_size}'
             f'_e-{num_train_epochs}'
             f'_lr-{config.optimization.learning_rate}'
@@ -141,10 +142,10 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
                                        save_last=True,
                                        save_top_k=1, save_weights_only=False,
                                        auto_insert_metric_name=False)
-    lr_monitor = LearningRateMonitor(logging_interval='step')
+    # lr_monitor = LearningRateMonitor(logging_interval='step')
     #wandb_logger = WandbLogger(save_dir=config.callbacks.checkpoint_folder, version=name, project=f"SAGANet")
     # early_stop_callback = EarlyStopping(monitor="val_PER", min_delta=0.005, patience=10, verbose=False, mode="min")
-    callbacks = [model_checkpoint, lr_monitor]
+    callbacks = [model_checkpoint]
     if config.callbacks.push_to_repo:
         local_dir = f'{dir_name}/huggingface_repo'
         os.makedirs(local_dir, exist_ok=True)
@@ -160,19 +161,18 @@ def main(config_path='finetune_config.yaml', layer_num=None) -> None:
     logger.info(f"  Total optimization steps = {config.trainer.max_train_steps}")
 
     # 7. Define Trainer and Learner
-    trainer = pl.Trainer(accelerator='cpu',#gpu
+    trainer = pl.Trainer(accelerator='gpu',
                         devices=config.trainer.num_gpus,
                         num_nodes=config.trainer.num_nodes,
-                        strategy=DDPStrategy(find_unused_parameters=False),
+                        strategy=DDPStrategy(find_unused_parameters=True),
                         max_epochs=num_train_epochs,
                         callbacks=callbacks,
                         accumulate_grad_batches=config.trainer.gradient_accumulation_steps,
                         #logger=wandb_logger,
+                        logger=False,
                         gradient_clip_val=config.trainer.gradient_clip_val,
                         gradient_clip_algorithm='norm',
-                        log_every_n_steps=config.trainer.gradient_accumulation_steps,
                         val_check_interval=config.trainer.check_val_steps,
-                        # deterministic=True,
                         fast_dev_run=False,
                         num_sanity_val_steps=0,
                         profiler="simple")
