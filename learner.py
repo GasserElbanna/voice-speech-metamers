@@ -142,7 +142,7 @@ class Learner(pl.LightningModule):
     
     def on_validation_epoch_start(self):
          self.val_logs = {
-            "val_CTC_loss": 0,
+            "val_Loss": 0,
             "val_CER": 0,
             "val_Accuracy": 0,
         }
@@ -151,7 +151,7 @@ class Learner(pl.LightningModule):
         
         loss, cer_value, acc = self._shared_eval_step(batch)
 
-        self.val_logs["val_Total_loss"] = loss
+        self.val_logs["val_Loss"] = loss
         self.val_logs["val_CER"] = cer_value
         self.val_logs["val_Accuracy"] = acc
 
