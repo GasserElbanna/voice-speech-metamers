@@ -110,10 +110,12 @@ def main(config_path='config.yaml', layer_num=None) -> None:
     #calculate number of training epochs
     num_train_epochs = math.ceil(config.trainer.max_train_steps / num_update_steps_per_epoch)
 
-    #define name of the directory saving the checkpoints
+    
     # name = (f"saganet"
-    #         f'_data-{config.data.data_path}'
-    #         f'_decoder-{config.saganet.model}'
+    #         f'_d-{config.saganet.d_model}'
+    #         f'_atthead-{config.saganet.num_head}'
+    #         f'_ffd-{config.saganet.dim_feedforward}'
+    #         f'_num_layers-{config.saganet.num_layers}'
     #         f'_bs-{config.dataloader.per_device_train_batch_size}'
     #         f'_e-{num_train_epochs}'
     #         f'_lr-{config.optimization.learning_rate}'
@@ -123,12 +125,6 @@ def main(config_path='config.yaml', layer_num=None) -> None:
     name = (f"saganet"
             f'_d-{config.saganet.d_model}'
             f'_atthead-{config.saganet.num_head}'
-            f'_ffd-{config.saganet.dim_feedforward}'
-            f'_num_layers-{config.saganet.num_layers}'
-            f'_bs-{config.dataloader.per_device_train_batch_size}'
-            f'_e-{num_train_epochs}'
-            f'_lr-{config.optimization.learning_rate}'
-            f'_rs-{config.seed}'
             )
     
     dir_name = f'{config.callbacks.checkpoint_folder}/{name}'
@@ -137,7 +133,7 @@ def main(config_path='config.yaml', layer_num=None) -> None:
 
     #define callbacks and logger
     model_checkpoint = ModelCheckpoint(dirpath=dir_name,
-                                       filename='best{epoch:02d}-val_loss{val_PER:.2f}', 
+                                       filename='best{epoch:02d}-val_loss{val_Loss:.2f}', 
                                        monitor='val_Loss',
                                        save_last=True,
                                        save_top_k=1, save_weights_only=False,
