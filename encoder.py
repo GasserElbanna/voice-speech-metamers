@@ -15,14 +15,14 @@ class Speech_Encoder(torch.nn.Module):
     def _preprocess(self, input_):
         if len(input_.shape)>1:
             input_ = torch.squeeze(input_)
-        input_feat = self.whisper_feature_extractor(input_, sampling_rate=self.sampling_rate, return_tensors="pt")
+        input_feat = self.whisper_feature_extractor(input_.detach().cpu(), sampling_rate=self.sampling_rate, return_tensors="pt")
         return input_feat.input_features
     
     def forward(self, input_values):
         # Forward pass for whisper branch
         self.whisper_encoder.eval()
         input_values = [self._preprocess(input_) for input_ in input_values]
-        output_values = [self.whisper_encoder(input_, decoder_input_ids=self.decoder_input_ids) for input_ in input_values]
+        output_values = [self.whisper_encoder(input_.to("cuda"), decoder_input_ids=self.decoder_input_ids.to("cuda")) for input_ in input_values]
         output_values = [output_.encoder_last_hidden_state for output_ in output_values]
         return torch.stack(output_values,dim=0).squeeze(1)
 
@@ -30,13 +30,12 @@ class Speaker_Encoder(torch.nn.Module):
     def __init__(self, cache_dir):
         super(Speaker_Encoder, self).__init__()
         self.ecapa_encoder = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb", savedir=cache_dir)
+        self.ecapa_encoder.device = "cuda"
 
     def forward(self, input_values):
         # Forward pass for ECAPA branch
         self.ecapa_encoder.eval()
-        input_values_squeezed = [torch.squeeze(input_) for input_ in input_values]
-        speaker_embedding = [self.ecapa_encoder.encode_batch(input_) for input_ in input_values_squeezed] # shape batch x 1 x embeddings
-        #speaker_embedding = [self.ecapa_encoder.encode_batch(input_).squeeze(0) for input_ in input_values] # shape batch x 1 x embeddings
+        speaker_embedding = [self.ecapa_encoder.encode_batch(input_.squeeze(0).to("cuda")) for input_ in input_values] # shape batch x 1 x embeddings
         return torch.stack(speaker_embedding,dim=0).squeeze(1)
     
 class Joint_Encoder(torch.nn.Module):
