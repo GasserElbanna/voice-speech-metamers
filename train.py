@@ -138,7 +138,7 @@ def main(config_path='config.yaml', layer_num=None) -> None:
     #define callbacks and logger
     model_checkpoint = ModelCheckpoint(dirpath=dir_name,
                                        filename='best{epoch:02d}-val_loss{val_PER:.2f}', 
-                                       monitor='val_loss',
+                                       monitor='val_Loss',
                                        save_last=True,
                                        save_top_k=1, save_weights_only=False,
                                        auto_insert_metric_name=False)
@@ -146,11 +146,11 @@ def main(config_path='config.yaml', layer_num=None) -> None:
     #wandb_logger = WandbLogger(save_dir=config.callbacks.checkpoint_folder, version=name, project=f"SAGANet")
     # early_stop_callback = EarlyStopping(monitor="val_PER", min_delta=0.005, patience=10, verbose=False, mode="min")
     callbacks = [model_checkpoint]
-    if config.callbacks.push_to_repo:
-        local_dir = f'{dir_name}/huggingface_repo'
-        os.makedirs(local_dir, exist_ok=True)
-        hf_push_repo = HuggingFaceHubCallback(f'gelbanna/{name}', dir_name=dir_name, local_dir=local_dir, git_user='GasserElbanna')
-        callbacks = [model_checkpoint, lr_monitor, hf_push_repo]
+    # if config.callbacks.push_to_repo:
+    #     local_dir = f'{dir_name}/huggingface_repo'
+    #     os.makedirs(local_dir, exist_ok=True)
+    #     hf_push_repo = HuggingFaceHubCallback(f'gelbanna/{name}', dir_name=dir_name, local_dir=local_dir, git_user='GasserElbanna')
+    #     callbacks = [model_checkpoint, lr_monitor, hf_push_repo]
 
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(vectorized_datasets['train'])}")
