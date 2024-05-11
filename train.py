@@ -122,6 +122,8 @@ def main(config_path='config.yaml', layer_num=None) -> None:
             f'_rs-{config.seed}'
             )
     
+   
+    
     dir_name = f'{config.callbacks.checkpoint_folder}/{name}'
     os.makedirs(dir_name, exist_ok=True)
     shutil.copy(config_path, dir_name)
