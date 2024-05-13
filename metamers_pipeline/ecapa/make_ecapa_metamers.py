@@ -76,10 +76,18 @@ def get_adv_examples(x):
     for _ in iterator:
         # main metamer generation
         x = x.clone().detach().requires_grad_(True)
-        losses, out = calc_loss(model, step.to_image(x), target)
+
+        #####
+        import pdb; pdb.set_trace()
+        rep = model.encode_batch(x)[0]
+        loss = torch.norm(rep - target.clone().detach(), dim=1)
+        
+        ######
+
+        losses, out = calc_loss(model, step.to_image(x), target.clone().detach())
         assert losses.shape[0] == x.shape[0], \
                 'Shape of losses must match input!'
-
+        
         loss = torch.mean(losses)
 
         # if step.use_grad:
@@ -127,10 +135,13 @@ if fs != sr:
 
 # load in model 
 model = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
+#model = model.cuda()
+model.eval()
 print('Loaded in ECAPA model')
 
+import pdb; pdb.set_trace()
 # Get target embedding by running signal through model
-target = model.encode_batch(signal)[0]
+target = model.encode_batch(signal.cuda())[0]
 
 # initialize random noise
 im_n_initialized = [(torch.randn_like(signal, requires_grad=True)) * noise_scale][0]

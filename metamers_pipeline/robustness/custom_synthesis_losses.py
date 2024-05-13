@@ -20,17 +20,19 @@ class InversionLossLayer(torch.nn.Module):
         return loss, None
 
 class InversionLossLayer_ecapa(torch.nn.Module):
-    """Loss used for most metamer generation experiments"""
-    def __init__(self, layer_to_invert, fake_relu=True, normalize_loss=False):
+    """
+    Loss used for most metamer generation experiments
+    Updated to specifically work on ecapa embeddings
+    """
+    def __init__(self, normalize_loss=False):
         super(InversionLossLayer_ecapa, self).__init__()
-        self.layer_to_invert = layer_to_invert
-        self.fake_relu = False
         self.normalize_loss = normalize_loss
 
     def forward(self, model, inp, targ):
-        # CHange to get ecapa model embeddings
+        # Change to get ecapa model embeddings
         all_outputs = model.encode_batch(inp)
-        rep = all_outputs[0][0]
+        rep = all_outputs[0]
+
         if self.normalize_loss:
             loss = torch.div(torch.norm(rep - targ, dim=1), torch.norm(targ, dim=1))
         else:

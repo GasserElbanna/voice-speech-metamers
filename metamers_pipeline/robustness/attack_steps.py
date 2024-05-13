@@ -122,6 +122,7 @@ class L2Step(AttackerStep):
         """
         diff = x - self.orig_input
         diff = diff.renorm(p=2, dim=0, maxnorm=self.eps)
+        # clamp: clamps all values in input to range [min, max]
         return ch.clamp(self.orig_input + diff, self.min_value, self.max_value)
 
     def step(self, x, g):

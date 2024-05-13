@@ -1,0 +1,46 @@
+Generating metamer for sound: /om2/user/amagaro/voice-speech-metamers/metamers_pipeline/kell2018/metamers/psychophysics_wsj400_jsintest_inversion_loss_layer_RS0_I3000_N8/0_SOUND_million/orig.wav
+resampling audio
+Loaded in ECAPA model
+Traceback (most recent call last):
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/speechbrain/lobes/models/ECAPA_TDNN.py", line 486, in forward
+    x = layer(x, lengths=lengths)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+TypeError: TDNNBlock.forward() got an unexpected keyword argument 'lengths'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/net/vast-storage/scratch/vast/mcdermott/salavill/misc/voice-speech-metamers/metamers_pipeline/ecapa/make_ecapa_metamers.py", line 140, in <module>
+    target = model.encode_batch(signal)[0]
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/speechbrain/inference/classifiers.py", line 110, in encode_batch
+    embeddings = self.mods.embedding_model(feats, wav_lens)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/speechbrain/lobes/models/ECAPA_TDNN.py", line 488, in forward
+    x = layer(x)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/speechbrain/lobes/models/ECAPA_TDNN.py", line 80, in forward
+    return self.norm(self.activation(self.conv(x)))
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/speechbrain/nnet/CNN.py", line 445, in forward
+    wx = self.conv(x)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 310, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/salavill/.conda/envs/metamer310/lib/python3.10/site-packages/torch/nn/modules/conv.py", line 306, in _conv_forward
+    return F.conv1d(input, weight, bias, self.stride,
+RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cpu and cuda:0! (when checking argument for argument weight in method wrapper_CUDA___slow_conv2d_forward)
