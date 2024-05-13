@@ -39,22 +39,23 @@ step_size = 2 * log_loss_every_num
 optimizer = optim.SGD([input_noise_init], lr=INIT_LR)
 clr = optim.lr_scheduler.CyclicLR(optimizer, base_lr=INIT_LR, max_lr=MAX_LR)
 
-# load in model 
-whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
-whisper_encoder = AutoModel.from_pretrained("openai/whisper-base")#, cache_dir=cache_dir)
-decoder_input_ids = torch.tensor([[1, 1]]) * whisper_encoder.config.decoder_start_token_id
-whisper_encoder.eval()
+### UPDATE running model pipeline
+# # load in model 
+# whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
+# whisper_encoder = AutoModel.from_pretrained("openai/whisper-base")#, cache_dir=cache_dir)
+# decoder_input_ids = torch.tensor([[1, 1]]) * whisper_encoder.config.decoder_start_token_id
+# whisper_encoder.eval()
 
-def run_model(input):
-    """
-    runs the whisper model when given audio input
-    """
-    input = whisper_feature_extractor(input.detach().cpu(), sampling_rate=sr, return_tensors="pt").input_features
-    # UPDATE: Should I be pushing to cuda?
-    output = whisper_encoder(input, decoder_input_ids=decoder_input_ids)
-    return output.encoder_last_hidden_state
+# def run_model(input):
+#     """
+#     runs the whisper model when given audio input
+#     """
+#     input = whisper_feature_extractor(input.detach().cpu(), sampling_rate=sr, return_tensors="pt").input_features
+#     # UPDATE: Should I be pushing to cuda?
+#     output = whisper_encoder(input, decoder_input_ids=decoder_input_ids)
+#     return output.encoder_last_hidden_state
 
-print('Loaded in Whisper model')
+print('Loaded in joint model')
 
 # Get target embedding by running signal through model
 target = run_model(signal)
@@ -82,12 +83,12 @@ for i in range(iterations_adam + 1):
     if i % log_loss_every_num == 0:
         input_noise_tensor_optimized = input_noise_init.detach().numpy()
         print(f'Saving Weights, {i/iterations_adam}%')
-        np.save('whisper/whisper_metamer.npy', input_noise_tensor_optimized)
+        np.save('joint_model/joint_metamer.npy', input_noise_tensor_optimized)
 
     if i == iterations_adam - 1:
         print('Saving Final Weights')
-        np.save('whisper/whisper_metamer.npy', input_noise_tensor_optimized)
-        scipy.io.wavfile.write('whisper/whisper_metamer.wav', sr, input_noise_tensor_optimized)
+        np.save('joint_model/joint_metamer.npy', input_noise_tensor_optimized)
+        scipy.io.wavfile.write('joint_model/joint_metamer.wav', sr, input_noise_tensor_optimized)
 
     if i % log_loss_every_num == 0:
         loss_temp = loss_fn()
