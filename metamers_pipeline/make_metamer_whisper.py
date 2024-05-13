@@ -4,7 +4,7 @@ import numpy as np
 import sys
 import torch.optim as optim
 from torch.optim.lr_scheduler import CyclicLR
-from speechbrain.inference.speaker import EncoderClassifier
+from transformers import AutoFeatureExtractor, AutoModel
 
 torch.manual_seed(100)
 
