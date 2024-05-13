@@ -62,7 +62,7 @@ for i in range(iterations_adam + 1):
     if i % log_loss_every_num == 0:
         # save out metamer every n iterations
         input_noise_tensor_optimized = input_noise_init.detach().numpy()
-        print('Saving Weights')
+        print(f'Saving Weights, {i/iterations_adam}%')
         np.save('ecapa/metamers/Ecapa_metamer.npy', input_noise_tensor_optimized)
 
     if i == iterations_adam - 1:

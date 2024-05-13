@@ -18,4 +18,4 @@ source activate metamer310
 sound_path=/om2/user/amagaro/voice-speech-metamers/metamers_pipeline/kell2018/metamers/psychophysics_wsj400_jsintest_inversion_loss_layer_RS0_I3000_N8/0_SOUND_million/orig.wav
 
 
-python -u ./make_metamer_minimal.py "$job_idx" "$sound_path"
+python -u ./make_metamer_whisper.py "$job_idx" "$sound_path"

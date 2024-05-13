@@ -14,6 +14,10 @@ audio = sys.argv[2]
 sr = 16000
 signal, fs = torchaudio.load(audio)
 
+if len(signal.shape)>1:
+    # Reshape signal as necessary
+    signal = torch.squeeze(signal)
+
 # initialize random noise 
 input_noise_init = torch.randn(signal.shape)
 input_noise_init = input_noise_init * torch.std(signal) / torch.std(input_noise_init)
@@ -39,18 +43,28 @@ clr = optim.lr_scheduler.CyclicLR(optimizer, base_lr=INIT_LR, max_lr=MAX_LR)
 whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
 whisper_encoder = AutoModel.from_pretrained("openai/whisper-base")#, cache_dir=cache_dir)
 decoder_input_ids = torch.tensor([[1, 1]]) * whisper_encoder.config.decoder_start_token_id
-
 whisper_encoder.eval()
+
+def run_model(input):
+    """
+    runs the whisper model when given audio input
+    """
+    input = whisper_feature_extractor(input.detach().cpu(), sampling_rate=sr, return_tensors="pt").input_features
+    # UPDATE: Should I be pushing to cuda?
+    output = whisper_encoder(input, decoder_input_ids=decoder_input_ids)
+    return output.encoder_last_hidden_state
+
 print('Loaded in Whisper model')
 
 # Get target embedding by running signal through model
-target = whisper_encoder(signal, decoder_input_ids=decoder_input_ids).encoder_last_hidden_state
+target = run_model(signal)
 print(target)
+print(target.shape)
 
 
 def loss_fn():
-        y_pred = whisper_encoder(input_noise_init, decoder_input_ids=decoder_input_ids).encoder_last_hidden_state
-        y_org = whisper_encoder(signal, decoder_input_ids=decoder_input_ids).encoder_last_hidden_state
+        y_pred = run_model(input_noise_init)
+        y_org = run_model(signal)
         loss_value = mse_loss(y_pred,y_org)
         return loss_value
 
@@ -67,7 +81,7 @@ for i in range(iterations_adam + 1):
 
     if i % log_loss_every_num == 0:
         input_noise_tensor_optimized = input_noise_init.detach().numpy()
-        print('Saving Weights')
+        print(f'Saving Weights, {i/iterations_adam}%')
         np.save('whisper/whisper_metamer.npy', input_noise_tensor_optimized)
 
     if i == iterations_adam - 1:
