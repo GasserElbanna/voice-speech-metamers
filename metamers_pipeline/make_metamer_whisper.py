@@ -45,25 +45,24 @@ whisper_encoder = AutoModel.from_pretrained("openai/whisper-base")#, cache_dir=c
 decoder_input_ids = torch.tensor([[1, 1]]) * whisper_encoder.config.decoder_start_token_id
 whisper_encoder.eval()
 
-def run_model(input):
+def run_model(input, noise=False):
     """
     runs the whisper model when given audio input
     """
     input = whisper_feature_extractor(input.detach().cpu(), sampling_rate=sr, return_tensors="pt").input_features
-    # UPDATE: Should I be pushing to cuda?
+    if noise:
+        input = input.clone().requires_grad_()
     output = whisper_encoder(input, decoder_input_ids=decoder_input_ids)
-    return output.encoder_last_hidden_state
+    return output.encoder_last_hidden_state.mean(1)
 
 print('Loaded in Whisper model')
 
 # Get target embedding by running signal through model
 target = run_model(signal)
-print(target)
 print(target.shape)
 
-
 def loss_fn():
-        y_pred = run_model(input_noise_init)
+        y_pred = run_model(input_noise_init, noise=True)
         y_org = run_model(signal)
         loss_value = mse_loss(y_pred,y_org)
         return loss_value
