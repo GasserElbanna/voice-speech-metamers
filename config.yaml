@@ -23,7 +23,7 @@ encoder:
 saganet:
   d_model: 704
   num_head: 8
-  dim_feedforward: 512
+  dim_feedforward: 256
   num_layers: 2
 
 callbacks:
