@@ -8,11 +8,12 @@ from torch.optim.lr_scheduler import CyclicLR
 from transformers import AutoFeatureExtractor, AutoModel
 
 # load in model imports
-from ..utils import *
-from ..learner import Learner
-from ..tokenizer import Tokenizer
-from ..decoder import Speech_Decoder_Linear, Speaker_Decoder_Linear
-from ..encoder import Speaker_Encoder, Speech_Encoder, Joint_Encoder
+sys.path.append('/om2/user/salavill/misc/voice-speech-metamers/')
+from utils import *
+from learner import Learner
+from tokenizer import Tokenizer
+from decoder import Speech_Decoder_Linear, Speaker_Decoder_Linear
+from encoder import Speaker_Encoder, Speech_Encoder, Joint_Encoder
 
 
 torch.manual_seed(100)
@@ -49,7 +50,7 @@ clr = optim.lr_scheduler.CyclicLR(optimizer, base_lr=INIT_LR, max_lr=MAX_LR)
 
 
 # load in model 
-config_path = "/om2/user/gelbanna/voice-speech-metamers/config.yaml"
+config_path = "../config.yaml"
 # Load config file
 config = load_yaml_config(config_path)
 
@@ -83,14 +84,14 @@ model = Learner.load_from_checkpoint(checkpoint_path=checkpoint,
 print('Loaded in joint model')
 
 # Get target embedding by running signal through model
-target = model(signal)
+target, _ = model(signal)
 print(target)
 print(target.shape)
 
 
 def loss_fn():
-        y_pred = model(input_noise_init)
-        y_org = model(signal)
+        y_pred, _ = model(input_noise_init)
+        y_org, _ = model(signal)
         loss_value = mse_loss(y_pred,y_org)
         return loss_value
 
