@@ -5,7 +5,7 @@ import sys
 import scipy
 import torch.optim as optim
 from torch.optim.lr_scheduler import CyclicLR
-from transformers import AutoFeatureExtractor, AutoModel
+from speechbrain.inference.speaker import EncoderClassifier
 
 torch.manual_seed(100)
 
@@ -36,21 +36,15 @@ optimizer = optim.SGD([input_noise_init], lr=INIT_LR)
 clr = optim.lr_scheduler.CyclicLR(optimizer, base_lr=INIT_LR, max_lr=MAX_LR)
 
 # load in model 
-whisper_feature_extractor = AutoFeatureExtractor.from_pretrained("openai/whisper-base")
-whisper_encoder = AutoModel.from_pretrained("openai/whisper-base")#, cache_dir=cache_dir)
-decoder_input_ids = torch.tensor([[1, 1]]) * whisper_encoder.config.decoder_start_token_id
-
-whisper_encoder.eval()
-print('Loaded in Whisper model')
+model = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
+print('Loaded in ECAPA model')
 
 # Get target embedding by running signal through model
-target = whisper_encoder(signal, decoder_input_ids=decoder_input_ids).encoder_last_hidden_state
-print(target)
-
+target = model.encode_batch(signal)[0]
 
 def loss_fn():
-        y_pred = whisper_encoder(input_noise_init, decoder_input_ids=decoder_input_ids).encoder_last_hidden_state
-        y_org = whisper_encoder(signal, decoder_input_ids=decoder_input_ids).encoder_last_hidden_state
+        y_pred = model.encode_batch(input_noise_init)[0]
+        y_org = model.encode_batch(signal)[0]
         loss_value = mse_loss(y_pred,y_org)
         return loss_value
 
@@ -66,15 +60,18 @@ for i in range(iterations_adam + 1):
     clr.step()
 
     if i % log_loss_every_num == 0:
+        # save out metamer every n iterations
         input_noise_tensor_optimized = input_noise_init.detach().numpy()
         print('Saving Weights')
-        np.save('whisper/whisper_metamer.npy', input_noise_tensor_optimized)
+        np.save('ecapa/metamers/Ecapa_metamer.npy', input_noise_tensor_optimized)
 
     if i == iterations_adam - 1:
+        # save out final metamer
         print('Saving Final Weights')
-        np.save('whisper/whisper_metamer.npy', input_noise_tensor_optimized)
-        scipy.io.wavfile.write('whisper/whisper_metamer.wav', sr, input_noise_tensor_optimized)
+        np.save('ecapa/metamers/Ecapa_metamer.npy', input_noise_tensor_optimized)
+        scipy.io.wavfile.write('ecapa/metamers/Ecapa_metamer.wav', sr, input_noise_tensor_optimized)
 
     if i % log_loss_every_num == 0:
+        # calculate loss and print
         loss_temp = loss_fn()
         print('Loss Value: ', loss_temp.item())
