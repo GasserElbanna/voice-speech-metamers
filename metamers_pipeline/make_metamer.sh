@@ -4,18 +4,19 @@
 #SBATCH --partition=normal
 #SBATCH --mail-type=ALL # Type of email notification- BEGIN,END,FAIL,ALL
 #SBATCH --mail-user=salavill@mit.edu # -- use this to send an automated email when:
-#SBATCH --out=/om2/user/salavill/misc/voice-speech-metamers/metamers_pipeline/ecapa/outlogs/testing_%A_%a.out
+#SBATCH --out=ecapa/outlogs/testing_%A_%a.out
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32GB
 #SBATCH --gres=gpu:a100:1
 #SBATCH --constraint=any-A100
-#SBATCH --array=1
+#SBATCH --array=0-3
 
 echo $(hostname)
+job_idx="$SLURM_ARRAY_TASK_ID"
 
 source activate metamer310
 
 sound_path=/om2/user/amagaro/voice-speech-metamers/metamers_pipeline/kell2018/metamers/psychophysics_wsj400_jsintest_inversion_loss_layer_RS0_I3000_N8/0_SOUND_million/orig.wav
 
 
-python -u ./make_metamer_minimal.py "$job_idx" "$sound_path"
+python -u ./make_metamer_ecapa_layers.py "$job_idx" "$sound_path"
