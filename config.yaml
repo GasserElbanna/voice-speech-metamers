@@ -7,7 +7,7 @@ data:
   num_speakers: 200
 
 text:
-  vocab_file: ./characters.txt
+  vocab_file: ../characters.txt
   pad: <pad>
   eos: <eos>
   unk: <unk>
@@ -24,7 +24,7 @@ saganet:
   d_model: 704
   num_head: 8
   dim_feedforward: 512
-  num_layers: 2
+  num_layers: 4
 
 callbacks:
   push_to_repo: False

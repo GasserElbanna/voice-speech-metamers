@@ -1,6 +1,0 @@
-# Ignore models and model weights
-**.npy
-**/pretrained_models/**
-
-# ignore outlogs
-**/outlogs/**
