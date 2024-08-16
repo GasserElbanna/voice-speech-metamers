@@ -21,7 +21,7 @@ encoder:
   model_cache: ../cache_data
 
 saganet:
-  d_model: 704
+  d_model: 512
   num_head: 8
   dim_feedforward: 512
   num_layers: 2

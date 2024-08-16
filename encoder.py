@@ -26,20 +26,8 @@ class Speech_Encoder(torch.nn.Module):
         output_values = [output_.encoder_last_hidden_state for output_ in output_values]
         return torch.stack(output_values,dim=0).squeeze(1)
 
-class Speaker_Encoder(torch.nn.Module):
-    def __init__(self, cache_dir):
-        super(Speaker_Encoder, self).__init__()
-        self.ecapa_encoder = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb", savedir=cache_dir)
-        self.ecapa_encoder.device = "cuda"
-
-    def forward(self, input_values):
-        # Forward pass for ECAPA branch
-        self.ecapa_encoder.eval()
-        speaker_embedding = [self.ecapa_encoder.encode_batch(input_.squeeze(0).to("cuda")) for input_ in input_values] # shape batch x 1 x embeddings
-        return torch.stack(speaker_embedding,dim=0).squeeze(1)
-    
 class Joint_Encoder(torch.nn.Module):
-    def __init__(self, d_model=704, num_head=8, dim_feedforward=512, num_layers=2):
+    def __init__(self, d_model=512, num_head=8, dim_feedforward=512, num_layers=2):
         super(Joint_Encoder, self).__init__()
         self.transformer_encoder_single = nn.TransformerEncoderLayer(d_model=d_model, nhead=num_head, dim_feedforward=dim_feedforward, batch_first=True)
         self.joint_encoder = nn.TransformerEncoder(self.transformer_encoder_single, num_layers=num_layers)

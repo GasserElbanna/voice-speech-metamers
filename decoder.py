@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
 class Speech_Decoder_Linear(torch.nn.Module):
-    def __init__(self, word_vocab=30, d_model=704, hidden_size=512):
+    def __init__(self, word_vocab=30, d_model=512, hidden_size=512):
         super(Speech_Decoder_Linear, self).__init__()
         self.word_vocab = word_vocab # change this after analyzing dataset -> len(vocab_dict)
         self.linear_project_word = nn.Linear(d_model, hidden_size)
