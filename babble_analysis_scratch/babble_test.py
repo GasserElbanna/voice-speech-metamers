@@ -126,7 +126,18 @@ def load_signal(file):
 
     return signal.numpy()
 
+import editdistance as ed 
+def cer(hypothesis, groundtruth):
+    err = 0
+    tot = 0
+    for p, t in zip(hypothesis, groundtruth):
+        p = p.split(' ')
+        t = t.split(' ')
+        err += float(ed.eval(p, t))
+        tot += len(t)
+        breakpoint()
 
+    return err / tot
 
 backgrounds = glob.glob('/om2/user/msaddler/spatial_audio_pipeline/assets/human_experiment_v00/background_cv08talkerbabble/*.wav')
 signals = pd.read_csv('/om2/user/gelbanna/commonvoice_data_curated.csv').query('split == "test" and total_file_duration_in_s > 2')
@@ -134,43 +145,56 @@ signals = pd.read_csv('/om2/user/gelbanna/commonvoice_data_curated.csv').query('
 def create_stim(row):
 
 
-    info = defaultdict(list)
+    # info = defaultdict(list)
 
     # load foreground
     foreground = load_signal(row['wav_path'])
     len_stim = foreground.shape[0]
-    info['foreground'].append(row['wav_path'])
-    info['foreground_idx'].append(row.index)
-    info['gt'].append(row['sentence'])
+    # info['foreground'].append(row['wav_path'])
+    # info['foreground_idx'].append(row.index)
 
     # load and reshape background
-    info['background'].append(np.random.choice(backgrounds))
-    background = load_signal(info['background'][-1])
+    # info['background'].append(np.random.choice(backgrounds))
+    # background = load_signal(info['background'][-1])
+    background = load_signal(np.random.choice(backgrounds))
     background = np.concatenate([background]*(int(len_stim/3)+1))[:len_stim]
 
-    output = defaultdict(list)
-    info['output'].append(output)
-    
-    output['snr'].append(45)
-    # run clean signal through the models
-    output['saganet'].append(saganet({'input_values': torch.from_numpy(foreground).unsqueeze(0)})[1])
-
-    output['whisper'].append(run_whisper(torch.from_numpy(foreground)))
+    whisper_output = defaultdict(list)
+    joint_output = defaultdict(list)
+    gt = defaultdict(list)
 
 
     for snr in range(min_snr, max_snr, snr_step):
 
-        output['snr'].append(snr)
+        whisper_output[snr]
 
         new_signal = combine_signal_and_noise(foreground, background, snr)
 
+        gt[snr].append(row['sentence'])
+
         # run sagenet
-        output['saganet'].append(saganet({'input_values': torch.from_numpy(new_signal).unsqueeze(0)})[1])
+        joint_output[snr].append(saganet({'input_values': torch.from_numpy(new_signal).unsqueeze(0)})[1][0].replace('  ', '_').replace(' ', '').replace('_', ' '))
 
-        output['whisper'].append(run_whisper(torch.from_numpy(new_signal)))
+        whisper_output[snr].extend(run_whisper(torch.from_numpy(new_signal)))
 
-        breakpoint()
+    # output['snr'].append(45)
+    # run clean signal through the models
+        
+    gt[snr].append(row['sentence'])
+    joint_output[45].append(saganet({'input_values': torch.from_numpy(foreground).unsqueeze(0)})[1][0].replace('  ', '_').replace(' ', '').replace('_', ' '))
+    whisper_output[45].extend(run_whisper(torch.from_numpy(foreground)))
+
 
 
 signals.apply(create_stim, axis = 1)
 
+results_joint = dict()
+results_whisper = dict()
+for snr in gt.keys():
+
+    results_joint[snr] = cer(gt[snr], joint_output[snr])
+    results_whisper[snr] = cer(gt[snr], whisper_output[snr])
+
+
+print(results_joint)
+print(results_whisper)
